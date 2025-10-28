@@ -330,7 +330,7 @@ span.badge {
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0;
 }
 
 .actions button {
@@ -405,8 +405,9 @@ div.more {
 
 const cardsHtml = entries
   .map(e => {
-    const descContent = e.desc ? escapeHtml(e.desc) : "No description";
-    const details = `<details><summary>More info</summary><div class="more">${descContent}</div></details>`;
+    const details = e.desc
+      ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
+      : "";
     return `<article class="card" data-id="${escapeHtml(e.name)}">
       <div class="row1">
         <div class="row1-left">
@@ -417,7 +418,6 @@ const cardsHtml = entries
       </div>
       <div class="actions">
         <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
-        <button class="run" type="button" data-run="${encodeURIComponent(e.href)}" data-tip="Run now">▶️ Run</button>
       </div>
       ${details}
     </article>`;
@@ -438,19 +438,28 @@ const script = `<script>(function(){
   function applyTheme(mode){
     const chosen=mode==='auto'?(prefersDark.matches?'dark':'light'):mode;
     root.setAttribute('data-theme', chosen);
-    localStorage.setItem('theme', mode);
+    memoryTheme=mode;
+    try{
+      const storage=window.localStorage;
+      if(storage) storage.setItem('theme', mode);
+    }catch(e){}
+    setBaseTip(mode);
   }
 
-  const saved=localStorage.getItem('theme')||'auto';
+  const saved=safeGetTheme();
   applyTheme(saved);
 
   if(themeBtn){
     themeBtn.addEventListener('click',()=>{
-      const current=localStorage.getItem('theme')||'auto';
+      const current=safeGetTheme();
       const next=current==='auto'?'dark':current==='dark'?'light':'auto';
       applyTheme(next);
-      themeBtn.setAttribute('data-tip','Theme: '+next);
-      setTimeout(()=>themeBtn.setAttribute('data-tip','Toggle theme'),1200);
+      if(resetTipTimer) clearTimeout(resetTipTimer);
+      themeBtn.setAttribute('data-tip', 'Theme: '+next);
+      resetTipTimer=setTimeout(()=>{
+        resetTipTimer=null;
+        themeBtn.setAttribute('data-tip', baseTip);
+      },1200);
     });
   }
 
@@ -517,13 +526,6 @@ const script = `<script>(function(){
       }catch(err){
         fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
       }
-    });
-  });
-
-  document.querySelectorAll('button.run').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const url=decodeURIComponent(btn.getAttribute('data-run'));
-      window.location.href=url;
     });
   });
 
