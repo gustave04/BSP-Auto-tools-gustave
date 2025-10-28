@@ -114,12 +114,9 @@ const cards = entries.length ? entries.map(e => {
       <span class=\"badge\">Last change: ${escapeHtml(updated)}<\/span>
       ${details}
     <\/article>`;
-}).join("
-") : `<article class=\"card\"><div class=\"left\"><span class=\"name\">No tools found<\/span><\/div><\/article>`;
+}).join("\n") : `<article class=\"card\"><div class=\"left\"><span class=\"name\">No tools found<\/span><\/div><\/article>`;
 
-const html = header + "
-" + cards + "
-" + footer;
+const html = header + "\n" + cards + "\n" + footer;
 ensureDir(DIST_DIR);
 fs.writeFileSync(OUT_FILE, html, "utf8");
 console.log(`✅ Built ${OUT_FILE} with ${entries.length} bookmarklet(s).`);
