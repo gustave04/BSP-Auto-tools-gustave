@@ -118,7 +118,7 @@ const CSS = `
 :root{
   --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0;
   --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18);
-  --radius:16px; --maxw:980px;
+  --radius:16px; --maxw:760px;
 }
 @media (prefers-color-scheme: dark){
   :root{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28); }
@@ -131,14 +131,14 @@ body{ margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui,
 h1{ margin:0 0 8px; font-size:clamp(22px,4vw,34px); letter-spacing:-.02em; }
 .subtitle{ margin:0 auto; max-width:720px; color:var(--muted); }
 .meta{ margin-top:8px; font-size:12px; color:var(--muted); }
-.grid{ margin-top:26px; display:grid; grid-template-columns:1fr; gap:10px; }
+.grid{ margin-top:26px; display:grid; grid-template-columns:1fr; gap:12px; }
 .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:10px; transition:transform .08s ease,box-shadow .08s ease,border-color .08s ease; }
 .card:hover{ transform:translateY(-1px); box-shadow:0 8px 28px var(--ring); border-color:transparent; }
 .name{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; }
 .badge{ margin-left:auto; font-size:11px; color:var(--muted); padding:2px 8px; border:1px solid var(--border); border-radius:999px; }
 .desc{ font-size:13px; color:var(--muted); min-height:.001px; }
-.actions{ display:flex; flex-direction:column; gap:10px; }
-.btn{ appearance:none; text-decoration:none; cursor:grab; user-select:none; width:100%; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border-radius:12px; background:var(--accent); color:var(--accent-contrast); border:1px solid transparent; font-weight:700; transition:transform .06s ease,box-shadow .06s ease,opacity .06s ease; }
+.actions{ display:flex; flex-direction:row; align-items:center; gap:10px; justify-content:flex-start; }
+.btn{ appearance:none; text-decoration:none; cursor:grab; user-select:none; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; border-radius:12px; background:var(--accent); color:var(--accent-contrast); border:1px solid transparent; font-weight:700; transition:transform .06s ease,box-shadow .06s ease,opacity .06s ease; width:auto; }
 .btn:hover{ transform:translateY(-1px); box-shadow:0 6px 16px var(--ring); }
 .btn:active{ transform:none; cursor:grabbing; }
 .hint{ width:100%; display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:12px; padding:12px 16px; border:1px dashed var(--border); color:var(--muted); font-weight:600; text-decoration:none; cursor:default; }
@@ -155,10 +155,18 @@ const header = `<!doctype html>
 <meta name="color-scheme" content="light dark" />
 <title>BSP Auto – Bookmarklets</title>
 <style>${CSS}</style>
+<style>
+.theme-toggle{ position:fixed; top:14px; left:14px; width:36px; height:36px; border-radius:999px; border:1px solid var(--border); background:var(--card); color:var(--fg); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 16px var(--ring);}
+.theme-toggle:hover{ transform:translateY(-1px); }
+/* theme overrides via data-theme */
+body[data-theme=dark]{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28);}
+body[data-theme=light]{ --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0; --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18);}
+</style>
 </head>
 <body>
 <main class="container">
   <header class="header">
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌗</button>
     <h1>BSP Auto – Bookmarklets</h1>
     <p class="subtitle">Ziehe die gewünschten Buttons in die Lesezeichenleiste – oder klicke sie direkt, wenn du die Zielseite bereits offen hast.</p>
     <div class="meta">Letztes Update: ${now.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "medium" })}</div>
@@ -170,6 +178,24 @@ const footer = `
   </section>
   <footer class="footer">© ${new Date().getFullYear()} BSP Auto – GitHub Pages</footer>
 </main>
+<script>
+(function(){
+  var key='theme';
+  var btn=document.getElementById('themeToggle');
+  try{
+    var saved=localStorage.getItem(key);
+    if(saved==='light'||saved==='dark'){ document.body.dataset.theme=saved; }
+  }catch(e){}
+  if(btn){
+    btn.addEventListener('click',function(){
+      var cur=document.body.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+      var next= cur==='dark' ? 'light' : 'dark';
+      document.body.dataset.theme=next;
+      try{ localStorage.setItem(key,next); }catch(e){}
+    });
+  }
+})();
+</script>
 </body>
 </html>`;
 
@@ -184,20 +210,21 @@ const cards = entries.length
     <article class="card"${titleAttr}>
       <div class="name">
         <span>${escapeHtml(e.name)}</span>
-        <span class="badge">${escapeHtml(updated)}</span>
+        <span class="badge">Last change: ${escapeHtml(updated)}<\/span>
       </div>
       ${e.desc ? `<p class="desc">${escapeHtml(e.desc)}</p>` : `<p class="desc"></p>`}
       <div class="actions">
-        <a class="btn" href="${e.href}" draggable="true">In Lesezeichenleiste ziehen</a>
-        <span class="hint">Datei: <strong>${escapeHtml(e.file)}</strong></span>
-      </div>
+        <a class="btn" href="${e.href}" draggable="true">In Lesezeichenleiste ziehen<\/a>
+      <\/div>
     </article>`;
       })
       .join("\n")
   : `<article class="card">
       <div class="name"><span>Keine Tools gefunden</span></div>
       <p class="desc">Lege .js-Dateien im Ordner <code>src/</code> an. Optional: <code>src/_meta.json</code> für Namen/Beschreibungen/Sortierung.</p>
-      <div class="actions"><span class="hint">Beispiel: <strong>fillBookmarklet.js</strong></span></div>
+      <div class="actions">
+        <a class="btn" href="${e.href}" draggable="true">In Lesezeichenleiste ziehen<\/a>
+      <\/div>
     </article>`;
 
 const html = header + "\n" + cards + "\n" + footer;
