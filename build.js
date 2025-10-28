@@ -318,7 +318,7 @@ span.badge {
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0;
 }
 
 .actions button {
@@ -405,7 +405,6 @@ const cardsHtml = entries
       </div>
       <div class="actions">
         <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
-        <button class="run" type="button" data-run="${encodeURIComponent(e.href)}" data-tip="Run now">▶️ Run</button>
       </div>
       ${details}
     </article>`;
@@ -511,13 +510,6 @@ const script = `<script>(function(){
       }catch(err){
         fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
       }
-    });
-  });
-
-  document.querySelectorAll('button.run').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const url=decodeURIComponent(btn.getAttribute('data-run'));
-      window.location.href=url;
     });
   });
 
