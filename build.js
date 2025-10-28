@@ -98,20 +98,24 @@ const footer=`
 </body>
 </html>`;
 
-const cards = entries.length ? entries.map(e=>{ const updated = e.mtime ? new Date(e.mtime).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "n/a"; const details = e.desc ? `
+const cards = entries.length ? entries.map(e => {
+  const updated = e.mtime ? new Date(e.mtime).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "n/a";
+  const details = e.desc ? `
       <details class="bottom">
         <summary>More info</summary>
         <div class="more-content">${escapeHtml(e.desc)}</div>
-      </details>` : ""; return `
-    <article class="card">
-      <div class="left">
-        <a class="btn" href="${e.href}" draggable="true" data-bmname="${escapeHtml(e.bookmarkName)}" title="Bookmark name: ${escapeHtml(e.bookmarkName)}">Drag to bookmarks</a>
-        <span class="name">${escapeHtml(e.name)}</span>
-      </div>
-      <span class="badge">Last change: ${escapeHtml(updated)}</span>
+      </details>` : "";
+  return `
+    <article class=\"card\">
+      <div class=\"left\">
+        <a class=\"btn\" href=\"${e.href}\" draggable=\"true\" data-bmname=\"${escapeHtml(e.bookmarkName)}\" title=\"Bookmark name: ${escapeHtml(e.bookmarkName)}\">Drag to bookmarks<\/a>
+        <span class=\"name\">${escapeHtml(e.name)}<\/span>
+      <\/div>
+      <span class=\"badge\">Last change: ${escapeHtml(updated)}<\/span>
       ${details}
-    </article>`; }).join("
-") : `<article class="card"><div class="left"><span class="name">No tools found</span></div></article>`;
+    <\/article>`;
+}).join("
+") : `<article class=\"card\"><div class=\"left\"><span class=\"name\">No tools found<\/span><\/div><\/article>`;
 
 const html = header + "
 " + cards + "
