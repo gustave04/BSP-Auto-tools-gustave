@@ -34,4 +34,20 @@ const html = `<!doctype html>
 :root{--bg:#0b1020;--fg:#e8eefc;--card:#141a33;--muted:#9fb0d0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:var(--fg);display:flex;min-height:100svh;align-items:center;justify-content:center;padding:24px}
 .wrap{max-width:760px;width:100%}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+a{display:block;padding:12px 14px;text-decoration:none;background:var(--card);color:var(--fg);border:1px solid #1f294d;border-radius:10px;font-weight:600;text-align:center;user-select:none}
+a:hover{background:#1a2142;transform:translateY(-1px)}
+footer{margin-top:20px;font-size:12px;color:var(--muted)}
+</style>
+<div class="wrap">
+  <h1>BSP Auto – Bookmarklets</h1>
+  <p>Ziehe die gewünschten Links in die Lesezeichenleiste.</p>
+  <section class="grid">
+    ${links}
+  </section>
+  <footer>Letztes Update: ${new Date().toLocaleString()}</footer>
+</div>`;
+
+fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
+fs.writeFileSync(path.join(__dirname, 'dist', 'index.html'), html, 'utf8');
+console.log(`✅ Built dist/index.html with ${files.length} tools`);
