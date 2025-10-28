@@ -1,29 +1,10 @@
 #!/usr/bin/env node
 /**
- * build.js — moderne Bookmarklet-Seite für GitHub Pages
- *
- * Features:
- * - Liest alle src/*.js (Dateien, die NICHT mit '_' beginnen) und baut daraus Bookmarklets
- * - Code wird UNVERÄNDERT übernommen (keine Minifizierung/Ersetzungen) → stabil bei Updates
- * - Optional: Metadatei src/_meta.json, um Namen, Beschreibungen, Reihenfolge und Wrap-Verhalten zu steuern
- * - Schreibt dist/index.html mit moderner, hell/dunkel-freundlicher UI (keine Abhängigkeiten)
- *
- * _meta.json Beispiel (optional):
- * {
- *   "order": ["01_fillBookmarklet.js", "copyBookmarklet.js"],
- *   "items": {
- *     "01_fillBookmarklet.js": {
- *       "name": "fillBookmarklet",         // Anzeigename (statt Dateiname ohne .js)
- *       "desc": "Füllt das BSP-Formular automatisch.",
- *       "wrap": true                        // true = in IIFE wrappen, false = Code direkt ausführen
- *     },
- *     "copyBookmarklet.js": {
- *       "name": "copyBookmarklet",
- *       "desc": "Kopiert Daten in die Zwischenablage.",
- *       "wrap": false
- *     }
- *   }
- * }
+ * build.js — modern bookmarklet landing page (EN)
+ * - Reads src/*.js (files NOT starting with '_') and builds bookmarklets
+ * - Source code is kept UNCHANGED (no minify)
+ * - Optional src/_meta.json controls display name, bookmark name, description, order, wrap
+ * - Outputs dist/index.html with a compact, left-to-right layout and dark-mode toggle
  */
 
 const fs = require("fs");
@@ -34,95 +15,27 @@ const DIST_DIR = path.join(__dirname, "dist");
 const OUT_FILE = path.join(DIST_DIR, "index.html");
 
 // ------------------------ Helpers -----------------------------------------
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+function ensureDir(dir){ if(!fs.existsSync(dir)) fs.mkdirSync(dir,{recursive:true}); }
+function listJsFiles(dir){ if(!fs.existsSync(dir)) return []; return fs.readdirSync(dir).filter(f=>f.toLowerCase().endsWith(".js")).filter(f=>!f.startsWith("_")) .sort((a,b)=>a.localeCompare(b,"en")); }
+function readMeta(){ const p=path.join(SRC_DIR,"_meta.json"); if(!fs.existsSync(p)) return {order:[],items:{}}; try{ const j=JSON.parse(fs.readFileSync(p,"utf8")); return {order:Array.isArray(j.order)?j.order:[], items:j.items&&typeof j.items==='object'?j.items:{}}; }catch(e){ console.warn("⚠️ Could not read src/_meta.json:",e.message); return {order:[],items:{}}; }}
+function mtimeISO(file){ try{ return new Date(fs.statSync(file).mtime).toISOString(); }catch{ return null; }}
+function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"','&quot;').replaceAll("'","&#039;"); }
+function toBookmarkletURL(source, wrap=true){ const code = wrap ? `(function(){
+${source}
+})();` : source; return "javascript:" + encodeURI(code).replace(/#/g,"%23"); }
+function defaultNameFromFile(file){ return file.replace(/\.js$/i,"").replace(/^bspAuto/i,""); }
 
-function listJsFiles(dir) {
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.toLowerCase().endsWith(".js"))
-    .filter((f) => !f.startsWith("_")) // Unterstrich-Dateien als Quellcode ignorieren (z. B. _meta.json, _helpers.js)
-    .sort((a, b) => a.localeCompare(b, "en"));
-}
-
-function readMeta() {
-  const metaPath = path.join(SRC_DIR, "_meta.json");
-  if (!fs.existsSync(metaPath)) return { order: [], items: {} };
-  try {
-    const raw = fs.readFileSync(metaPath, "utf8");
-    const json = JSON.parse(raw);
-    const order = Array.isArray(json.order) ? json.order : [];
-    const items = json.items && typeof json.items === "object" ? json.items : {};
-    return { order, items };
-  } catch (e) {
-    console.warn("⚠️  Konnte src/_meta.json nicht lesen/parsen:", e.message);
-    return { order: [], items: {} };
-  }
-}
-
-function mtimeISO(file) {
-  try { return new Date(fs.statSync(file).mtime).toISOString(); } catch { return null; }
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-// Bookmarklet-URL bauen — Code UNVERÄNDERT lassen; nur sicher URL-encoden
-// Optional: in IIFE wrappen (Standard = true). Pro Datei via Meta überschreibbar.
-function toBookmarkletURL(source, wrap = true) {
-  const code = wrap ? `(function(){\n${source}\n})();` : source;
-  // encodeURI für bookmarklet: Whitespace/Unicode bleibt weitgehend erhalten.
-  // '#' muss explizit escaped werden, sonst bricht die URL in manchen Browsern/Hosts.
-  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
-}
-
-function defaultNameFromFile(file) {
-  const base = file.replace(/\.js$/i, "");
-  // Optional: bspAuto-Präfix entfernen (legacy-Verhalten)
-  return base.replace(/^bspAuto/i, "");
-}
-
-// ------------------------ Build-Daten sammeln ------------------------------
+// ------------------------ Collect -----------------------------------------
 ensureDir(DIST_DIR);
-
-const allFiles = listJsFiles(SRC_DIR);
-const meta = readMeta();
-
-// Sortierreihenfolge: zuerst meta.order, dann Rest alphabetisch
-const orderedFiles = [
-  ...meta.order.filter((f) => allFiles.includes(f)),
-  ...allFiles.filter((f) => !meta.order.includes(f)),
-];
-
-const entries = orderedFiles.map((file) => {
-  const full = path.join(SRC_DIR, file);
-  const source = fs.readFileSync(full, "utf8");
-  const cfg = meta.items[file] || {};
-  const name = cfg.name || defaultNameFromFile(file);
-  const desc = cfg.desc || "";
-  const wrap = typeof cfg.wrap === "boolean" ? cfg.wrap : true; // Default: true
-  const href = toBookmarkletURL(source, wrap);
-  return { file, name, desc, href, mtime: mtimeISO(full) };
-});
+const allFiles=listJsFiles(SRC_DIR);
+const meta=readMeta();
+const ordered=[...meta.order.filter(f=>allFiles.includes(f)), ...allFiles.filter(f=>!meta.order.includes(f))];
+const entries=ordered.map(file=>{ const full=path.join(SRC_DIR,file); const source=fs.readFileSync(full,"utf8"); const cfg=meta.items[file]||{}; const name=cfg.name||defaultNameFromFile(file); const bookmarkName=cfg.bookmarkName||name; const desc=cfg.desc||""; const wrap=typeof cfg.wrap==="boolean"?cfg.wrap:true; const href=toBookmarkletURL(source,wrap); return {file,name,bookmarkName,desc,href,mtime:mtimeISO(full)}; });
 
 // ------------------------ HTML/CSS -----------------------------------------
-const CSS = `
-:root{
-  --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0;
-  --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18);
-  --radius:16px; --maxw:760px;
-}
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28); }
-}
+const CSS=`
+:root{ --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0; --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18); --radius:16px; --maxw:680px; }
+@media (prefers-color-scheme: dark){ :root{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28);} }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{ margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial; display:grid; place-items:start center; }
@@ -132,103 +45,77 @@ h1{ margin:0 0 8px; font-size:clamp(22px,4vw,34px); letter-spacing:-.02em; }
 .subtitle{ margin:0 auto; max-width:720px; color:var(--muted); }
 .meta{ margin-top:8px; font-size:12px; color:var(--muted); }
 .grid{ margin-top:26px; display:grid; grid-template-columns:1fr; gap:12px; }
-.card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:10px; transition:transform .08s ease,box-shadow .08s ease,border-color .08s ease; }
+.card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto; grid-template-areas:"left badge" "bottom bottom"; row-gap:8px; column-gap:12px; transition:transform .08s ease,box-shadow .08s ease,border-color .08s ease; }
 .card:hover{ transform:translateY(-1px); box-shadow:0 8px 28px var(--ring); border-color:transparent; }
-.name{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; }
-.badge{ margin-left:auto; font-size:11px; color:var(--muted); padding:2px 8px; border:1px solid var(--border); border-radius:999px; }
-.desc{ font-size:13px; color:var(--muted); min-height:.001px; }
-.actions{ display:flex; flex-direction:row; align-items:center; gap:10px; justify-content:flex-start; }
-.btn{ appearance:none; text-decoration:none; cursor:grab; user-select:none; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; border-radius:12px; background:var(--accent); color:var(--accent-contrast); border:1px solid transparent; font-weight:700; transition:transform .06s ease,box-shadow .06s ease,opacity .06s ease; width:auto; }
+.left{ grid-area:left; display:flex; align-items:center; gap:12px; min-width:0; }
+.name{ font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.badge{ grid-area:badge; justify-self:end; font-size:11px; color:var(--muted); padding:2px 8px; border:1px solid var(--border); border-radius:999px; }
+.btn{ appearance:none; text-decoration:none; cursor:grab; user-select:none; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border-radius:12px; background:var(--accent); color:var(--accent-contrast); border:1px solid transparent; font-weight:700; transition:transform .06s ease,box-shadow .06s ease,opacity .06s ease; white-space:nowrap; }
 .btn:hover{ transform:translateY(-1px); box-shadow:0 6px 16px var(--ring); }
 .btn:active{ transform:none; cursor:grabbing; }
-.hint{ width:100%; display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:12px; padding:12px 16px; border:1px dashed var(--border); color:var(--muted); font-weight:600; text-decoration:none; cursor:default; }
+.bottom{ grid-area:bottom; }
+details{ border:1px dashed var(--border); border-radius:12px; }
+summary{ list-style:none; cursor:pointer; padding:8px 10px; font-weight:700; color:var(--muted); display:flex; align-items:center; gap:8px; }
+summary::-webkit-details-marker{ display:none; }
+summary::before{ content:"▸"; display:inline-block; transform:translateY(-1px); }
+details[open] summary::before{ content:"▾"; }
+.more-content{ padding:8px 10px 10px; font-size:13px; color:var(--muted); border-top:1px dashed var(--border); }
 .footer{ margin-top:36px; text-align:center; color:var(--muted); font-size:13px; }
 .instructions{ margin-top:8px; font-size:13px; color:var(--muted); }
+.theme-toggle{ position:fixed; top:14px; left:14px; width:36px; height:36px; border-radius:999px; border:1px solid var(--border); background:var(--card); color:var(--fg); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 16px var(--ring);} .theme-toggle:hover{ transform:translateY(-1px); }
+/* explicit theme overrides */
+body[data-theme=dark]{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28);} 
+body[data-theme=light]{ --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0; --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18);} 
 `;
 
-const now = new Date();
-const header = `<!doctype html>
-<html lang="de">
+const now=new Date();
+const header=`<!doctype html>
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="light dark" />
 <title>BSP Auto – Bookmarklets</title>
 <style>${CSS}</style>
-<style>
-.theme-toggle{ position:fixed; top:14px; left:14px; width:36px; height:36px; border-radius:999px; border:1px solid var(--border); background:var(--card); color:var(--fg); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 16px var(--ring);}
-.theme-toggle:hover{ transform:translateY(-1px); }
-/* theme overrides via data-theme */
-body[data-theme=dark]{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28);}
-body[data-theme=light]{ --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0; --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18);}
-</style>
 </head>
 <body>
 <main class="container">
   <header class="header">
     <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌗</button>
     <h1>BSP Auto – Bookmarklets</h1>
-    <p class="subtitle">Ziehe die gewünschten Buttons in die Lesezeichenleiste – oder klicke sie direkt, wenn du die Zielseite bereits offen hast.</p>
-    <div class="meta">Letztes Update: ${now.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "medium" })}</div>
-    <div class="instructions">Tipp: Rechtsklick → „Link zu Favoriten hinzufügen“, wenn Drag &amp; Drop nicht funktioniert.</div>
+    <p class="subtitle">Drag the buttons to your bookmarks bar — or click to run directly on the target page.</p>
+    <div class="meta">Last build: ${now.toLocaleString("en-GB",{dateStyle:"short",timeStyle:"medium"})}</div>
+    <div class="instructions">Tip: If drag &amp; drop doesn’t work, right‑click a button and choose “Add link to bookmarks”.</div>
   </header>
   <section class="grid">`;
 
-const footer = `
+const footer=`
   </section>
   <footer class="footer">© ${new Date().getFullYear()} BSP Auto – GitHub Pages</footer>
 </main>
-<script>
-(function(){
-  var key='theme';
-  var btn=document.getElementById('themeToggle');
-  try{
-    var saved=localStorage.getItem(key);
-    if(saved==='light'||saved==='dark'){ document.body.dataset.theme=saved; }
-  }catch(e){}
-  if(btn){
-    btn.addEventListener('click',function(){
-      var cur=document.body.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-      var next= cur==='dark' ? 'light' : 'dark';
-      document.body.dataset.theme=next;
-      try{ localStorage.setItem(key,next); }catch(e){}
-    });
-  }
-})();
-</script>
+<script>(function(){var key='theme';var btn=document.getElementById('themeToggle');try{var saved=localStorage.getItem(key);if(saved==='light'||saved==='dark'){document.body.dataset.theme=saved}}catch(e){}if(btn){btn.addEventListener('click',function(){var cur=document.body.dataset.theme||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');var next=cur==='dark'?'light':'dark';document.body.dataset.theme=next;try{localStorage.setItem(key,next)}catch(e){}})}})();</script>
+<script>(function(){var links=document.querySelectorAll('.btn');links.forEach(function(a){function setName(){a.dataset.originalText=a.textContent;var nm=a.dataset.bmname||a.textContent;a.textContent=nm;a.setAttribute('title','Bookmark name: '+nm);}function restore(){if(a.dataset.originalText){a.textContent=a.dataset.originalText;delete a.dataset.originalText;}}a.addEventListener('dragstart',setName);a.addEventListener('dragend',restore);a.addEventListener('contextmenu',function(){setName();setTimeout(restore,1200);});});})();</script>
 </body>
 </html>`;
 
-const cards = entries.length
-  ? entries
-      .map((e) => {
-        const updated = e.mtime
-          ? new Date(e.mtime).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })
-          : "n/a";
-        const titleAttr = e.desc ? ` title="${escapeHtml(e.desc)}"` : "";
-        return `
-    <article class="card"${titleAttr}>
-      <div class="name">
-        <span>${escapeHtml(e.name)}</span>
-        <span class="badge">Last change: ${escapeHtml(updated)}<\/span>
-      </div>
-      ${e.desc ? `<p class="desc">${escapeHtml(e.desc)}</p>` : `<p class="desc"></p>`}
-      <div class="actions">
-        <a class="btn" href="${e.href}" draggable="true">In Lesezeichenleiste ziehen<\/a>
+const cards = entries.length ? entries.map(e=>{ const updated=e.mtime? new Date(e.mtime).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"}) : "n/a"; const details = e.desc ? `
+      <details class="bottom">
+        <summary>More info</summary>
+        <div class="more-content">${escapeHtml(e.desc)}</div>
+      </details>` : ""; return `
+    <article class="card">
+      <div class="left">
+        <a class="btn" href="${e.href}" draggable="true" data-bmname="${escapeHtml(e.bookmarkName)}" title="Bookmark name: ${escapeHtml(e.bookmarkName)}">Drag to bookmarks<\/a>
+        <span class="name">${escapeHtml(e.name)}<\/span>
       <\/div>
-    </article>`;
-      })
-      .join("\n")
-  : `<article class="card">
-      <div class="name"><span>Keine Tools gefunden</span></div>
-      <p class="desc">Lege .js-Dateien im Ordner <code>src/</code> an. Optional: <code>src/_meta.json</code> für Namen/Beschreibungen/Sortierung.</p>
-      <div class="actions">
-        <a class="btn" href="${e.href}" draggable="true">In Lesezeichenleiste ziehen<\/a>
-      <\/div>
-    </article>`;
+      <span class="badge">Last change: ${escapeHtml(updated)}<\/span>
+      ${details}
+    <\/article>`; }).join("
+") : `<article class="card"><div class="left"><span class="name">No tools found</span></div></article>`;
 
-const html = header + "\n" + cards + "\n" + footer;
-
+const html = header+"
+"+cards+"
+"+footer;
 ensureDir(DIST_DIR);
 fs.writeFileSync(OUT_FILE, html, "utf8");
 console.log(`✅ Built ${OUT_FILE} with ${entries.length} bookmarklet(s).`);
