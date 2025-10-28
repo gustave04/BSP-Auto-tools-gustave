@@ -417,23 +417,59 @@ const script = `<script>(function(){
   const themeBtn=document.getElementById('themeToggle');
   const exportBtn=document.getElementById('exportAll');
   const prefersDark=window.matchMedia('(prefers-color-scheme: dark)');
+  let memoryTheme='auto';
+  let resetTipTimer=null;
+  let baseTip='Toggle theme (current: auto)';
+
+  function setBaseTip(mode){
+    baseTip='Toggle theme (current: '+mode+')';
+    if(!themeBtn) return;
+    themeBtn.dataset.mode=mode;
+    themeBtn.setAttribute('aria-pressed', mode!=='auto');
+    themeBtn.setAttribute('aria-label', baseTip);
+    if(!resetTipTimer){
+      themeBtn.setAttribute('data-tip', baseTip);
+    }
+  }
+
+  function safeGetTheme(){
+    try{
+      const storage=window.localStorage;
+      if(!storage) return memoryTheme;
+      const stored=storage.getItem('theme');
+      if(stored===null||stored===undefined||stored==='') return memoryTheme;
+      memoryTheme=stored;
+      return stored;
+    }catch(e){
+      return memoryTheme;
+    }
+  }
 
   function applyTheme(mode){
     const chosen=mode==='auto'?(prefersDark.matches?'dark':'light'):mode;
     root.setAttribute('data-theme', chosen);
-    localStorage.setItem('theme', mode);
+    memoryTheme=mode;
+    try{
+      const storage=window.localStorage;
+      if(storage) storage.setItem('theme', mode);
+    }catch(e){}
+    setBaseTip(mode);
   }
 
-  const saved=localStorage.getItem('theme')||'auto';
+  const saved=safeGetTheme();
   applyTheme(saved);
 
   if(themeBtn){
     themeBtn.addEventListener('click',()=>{
-      const current=localStorage.getItem('theme')||'auto';
+      const current=safeGetTheme();
       const next=current==='auto'?'dark':current==='dark'?'light':'auto';
       applyTheme(next);
-      themeBtn.setAttribute('data-tip','Theme: '+next);
-      setTimeout(()=>themeBtn.setAttribute('data-tip','Toggle theme'),1200);
+      if(resetTipTimer) clearTimeout(resetTipTimer);
+      themeBtn.setAttribute('data-tip', 'Theme: '+next);
+      resetTipTimer=setTimeout(()=>{
+        resetTipTimer=null;
+        themeBtn.setAttribute('data-tip', baseTip);
+      },1200);
     });
   }
 
