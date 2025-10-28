@@ -6,6 +6,7 @@
  * - Outputs dist/index.html with a compact, left-to-right layout and dark-mode toggle
  */
 
+
 const fs = require("fs");
 const path = require("path");
 
