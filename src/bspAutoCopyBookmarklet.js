@@ -176,6 +176,16 @@ javascript:(() => {
     console.groupEnd();
   };
 
+  const hasNonNullValue = (value) => {
+    if (Array.isArray(value)) {
+      return value.some(hasNonNullValue);
+    }
+    if (value && typeof value === "object") {
+      return Object.values(value).some(hasNonNullValue);
+    }
+    return value != null;
+  };
+
   const showToast = (message, { error = false } = {}) => {
     const existing = document.querySelector("#bsp-auto-toast");
     if (existing) {
@@ -210,11 +220,24 @@ javascript:(() => {
     }, 4000);
   };
 
+  if (!hasNonNullValue(result)) {
+    console.warn("No BSP data found", result);
+    showToast("No data found", { error: true });
+    return;
+  }
+
   try {
     localStorage.setItem("bspAutoBookingData", JSON.stringify(result));
     console.info("bspAutoBookingData updated", result);
     logStructuredResult(result);
     showToast("BSP data copied");
+    const openPasteBookmarkletPage = () =>
+      window.open(
+        "https://www.bsp-auto.com/auto_2175bsp/tarifs.asp",
+        "_blank",
+        "noopener"
+      );
+    setTimeout(openPasteBookmarkletPage, 1000);
   } catch (error) {
     console.error("Failed to store bspAutoBookingData", error, result);
     showToast("Failed to copy BSP data", { error: true });
