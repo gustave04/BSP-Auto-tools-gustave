@@ -67,7 +67,9 @@ function readMeta() {
   if (!fs.existsSync(metaFile)) return { order: [], items: {} };
   try {
     const raw = fs.readFileSync(metaFile, "utf8");
-    const meta = JSON.parse(stripJsonComments(raw));
+    const cleaned = stripJsonComments(raw).trim();
+    if (!cleaned) return { order: [], items: {} };
+    const meta = JSON.parse(cleaned);
     return {
       order: Array.isArray(meta.order) ? meta.order : [],
       items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
