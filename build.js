@@ -297,15 +297,16 @@ const html = `<!doctype html>
   }
 
   // Export list as Markdown
-  document.getElementById('copyAll').addEventListener('click', async () => {
+  document.getElementById('copyAll').addEventListener('click', async (e) => {
     const lines = [...document.querySelectorAll('.card')].map(card => {
       const name = card.querySelector('h3').innerText.trim();
       const a = card.querySelector('a.bm');
       const url = a.getAttribute('href');
-      return `- [${name}](${url})`;
-    }).join('\n');
-    try { await navigator.clipboard.writeText(lines); pulse(event.currentTarget, 'Exported!'); }
-    catch(e){ fallbackCopy(lines) ? pulse(event.currentTarget, 'Exported!') : pulse(event.currentTarget, 'Copy failed'); }
+      return \`- [\${name}](\${url})\`;
+    }).join('
+');
+    try { await navigator.clipboard.writeText(lines); pulse(e.currentTarget, 'Exported!'); }
+    catch(err){ fallbackCopy(lines) ? pulse(e.currentTarget, 'Exported!') : pulse(e.currentTarget, 'Copy failed'); }
   });
 
   // Improve drag data for some browsers
