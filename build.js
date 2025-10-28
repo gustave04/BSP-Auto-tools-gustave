@@ -1,17 +1,3 @@
-/**
- * build.js — Generates a modern, responsive GitHub Pages site for BSP Auto bookmarklets
- * No external deps. Just `node build.js` (works in GitHub Actions).
- *
- * Features:
- * - Reads /src/*.js bookmarklets and extracts optional metadata from header comments
- *   //@name, //@description, //@icon (emoji or short text), //@category
- * - Wraps code as a bookmarklet, does a tiny minify (strips comments/whitespace)
- * - Outputs dist/index.html with modern UI, dark/light theme + smooth transitions
- * - Accessible focus states, tooltip system, hover glow, copy-to-clipboard
- * - Drag-to-bookmarks button (native anchor) + click-to-run behavior supported
- * - Last build time shown; per-bookmarklet last changed (git or file mtime)
- */
-
 const fs = require('fs');
 const path = require('path');
 
