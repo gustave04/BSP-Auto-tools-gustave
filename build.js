@@ -1,81 +1,100 @@
-/**
- * build.js — Generates a modern, responsive GitHub Pages site for BSP Auto bookmarklets
- * No external deps. Just `node build.js` (works in GitHub Actions).
- *
- * Features:
- * - Reads /src/*.js bookmarklets and extracts optional metadata from header comments
- *   //@name, //@description, //@icon (emoji or short text), //@category
- * - Wraps code as a bookmarklet, does a tiny minify (strips comments/whitespace)
- * - Outputs dist/index.html with modern UI, dark/light theme + smooth transitions
- * - Accessible focus states, tooltip system, hover glow, copy-to-clipboard
- * - Drag-to-bookmarks button (native anchor) + click-to-run behavior supported
- * - Last build time shown; per-bookmarklet last changed (git or file mtime)
- */
+const fs = require("fs");
+const path = require("path");
 
-const fs = require('fs');
-const path = require('path');
+const SRC = path.join(__dirname, "src");
+const DIST = path.join(__dirname, "dist");
+const OUT = path.join(DIST, "index.html");
 
-const SRC_DIR = path.join(__dirname, 'src');
-const DIST_DIR = path.join(__dirname, 'dist');
-
-// Ensure dist exists and is clean-ish
-if (!fs.existsSync(DIST_DIR)) fs.mkdirSync(DIST_DIR);
-
-/** Utility: basic JS comment stripper & compactor (very conservative) */
-function mini(js) {
-  return js
-    .replace(/\/\*[\s\S]*?\*\//g, '') // block comments
-    .replace(/^\s*\/\/.*$/gm, '') // line comments
-    .replace(/\n+/g, '\n')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+// Helpers ---------------------------------------------------------------
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-/** Utility: ensure code is wrapped as an IIFE bookmarklet */
-function toBookmarklet(js) {
-  const trimmed = js.trim();
-  const body = trimmed.startsWith('javascript:') ? trimmed.slice('javascript:'.length) : trimmed;
-  const wrapped = /\(function|\(\)=>|^\(.*\)\s*=>/.test(body) || body.startsWith('(()=>') ? body : `(()=>{${body}})()`;
-  return 'javascript:' + encodeURI(wrapped);
+function listJs(dir) {
+  return fs.existsSync(dir)
+    ? fs.readdirSync(dir).filter(f => f.endsWith(".js") && !f.startsWith("_"))
+    : [];
 }
 
-/** Extract metadata from header comments */
-function parseMeta(content, filename) {
-  const get = (tag, fallback='') => {
-    const m = content.match(new RegExp(`^\s*\/\/\s*@${tag}:(.*)$`, 'mi'));
-    return m ? m[1].trim() : fallback;
-  };
-  const name = get('name', path.basename(filename, '.js'));
-  const description = get('description', '');
-  const icon = get('icon', '🟦');
-  const category = get('category', 'General');
-  return { name, description, icon, category };
+function stripJsonComments(input) {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const next = input[i + 1];
+
+    if (inString) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      while (i < input.length && input[i] !== "\n") i++;
+      if (input[i] === "\n") result += "\n";
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (i < input.length && !(input[i] === "*" && input[i + 1] === "/")) i++;
+      i++;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
 }
 
-/** Read all src files */
-function readBookmarklets() {
-  if (!fs.existsSync(SRC_DIR)) return [];
-  const files = fs.readdirSync(SRC_DIR).filter(f => f.endsWith('.js'));
-  return files.map(file => {
-    const full = path.join(SRC_DIR, file);
-    const raw = fs.readFileSync(full, 'utf8');
-    const meta = parseMeta(raw, file);
-    const mt = fs.statSync(full).mtime;
-    const code = mini(raw);
-    const href = toBookmarklet(code);
-    return { id: path.basename(file, '.js'), file, href, code, meta, mtime: mt };
-  }).sort((a, b) => a.meta.name.localeCompare(b.meta.name));
+function readMeta() {
+  const metaFile = path.join(SRC, "_meta.json");
+  if (!fs.existsSync(metaFile)) return { order: [], items: {} };
+  try {
+    const raw = fs.readFileSync(metaFile, "utf8");
+    const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+    const cleaned = stripJsonComments(normalized).trim();
+    if (!cleaned) return { order: [], items: {} };
+    const meta = JSON.parse(cleaned);
+    return {
+      order: Array.isArray(meta.order) ? meta.order : [],
+      items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
+    };
+  } catch {
+    return { order: [], items: {} };
+  }
 }
 
-const items = readBookmarklets();
-const buildTime = new Date();
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
-/** HTML Template */
-const html = `<!doctype html>
-<html lang="en" data-theme="auto">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BSP Auto – Bookmarklets</title>
-  <meta name="description" content="Drag buttons to your bookmarks bar or click to run. Copy-ready bookmarklets for BSP Auto workflows.">
-  <link rel="icon" href="data:image/svg
+function toBookmarkletURL(source, wrap = true) {
+  const code = wrap ? `(function(){${source}})();` : source;
+  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
+}
+
+// Collect ---------------------------------------------------------------
+ensureDir(DIST);
+const allFiles = listJs(SRC);
+const meta = readMeta();
