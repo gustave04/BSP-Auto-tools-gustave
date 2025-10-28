@@ -193,6 +193,18 @@ body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
   box-shadow: var(--shadow-hover);
@@ -318,7 +330,7 @@ span.badge {
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0;
 }
 
 .actions button {
@@ -393,8 +405,9 @@ div.more {
 
 const cardsHtml = entries
   .map(e => {
-    const descContent = e.desc ? escapeHtml(e.desc) : "No description";
-    const details = `<details><summary>More info</summary><div class="more">${descContent}</div></details>`;
+    const details = e.desc
+      ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
+      : "";
     return `<article class="card" data-id="${escapeHtml(e.name)}">
       <div class="row1">
         <div class="row1-left">
@@ -405,7 +418,6 @@ const cardsHtml = entries
       </div>
       <div class="actions">
         <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
-        <button class="run" type="button" data-run="${encodeURIComponent(e.href)}" data-tip="Run now">▶️ Run</button>
       </div>
       ${details}
     </article>`;
@@ -416,7 +428,12 @@ const script = `<script>(function(){
   const root=document.documentElement;
   const themeBtn=document.getElementById('themeToggle');
   const exportBtn=document.getElementById('exportAll');
+  const liveRegion=document.getElementById('liveRegion');
   const prefersDark=window.matchMedia('(prefers-color-scheme: dark)');
+  const PULSE_TIMEOUT=1200;
+  const tipTimers=new WeakMap();
+  let liveMessageTimer=null;
+  let liveResetTimer=null;
 
   function updateThemeToggle(mode){
     if(!themeBtn) return;
@@ -466,10 +483,35 @@ const script = `<script>(function(){
     return ok;
   }
 
+  function announceLive(message){
+    if(!liveRegion) return;
+    liveRegion.textContent='';
+    if(liveMessageTimer){clearTimeout(liveMessageTimer);}
+    if(liveResetTimer){clearTimeout(liveResetTimer);}
+    liveMessageTimer=setTimeout(()=>{
+      liveRegion.textContent=message;
+      liveMessageTimer=null;
+    },50);
+    liveResetTimer=setTimeout(()=>{
+      liveRegion.textContent='';
+      liveResetTimer=null;
+    },PULSE_TIMEOUT);
+  }
+
   function pulse(el,label){
-    const prev=el.getAttribute('data-tip')||'';
+    if(!el.hasAttribute('data-tip-default')){
+      el.setAttribute('data-tip-default',el.getAttribute('data-tip')||'');
+    }
     el.setAttribute('data-tip',label);
-    setTimeout(()=>el.setAttribute('data-tip',prev),1200);
+    if(tipTimers.has(el)){
+      clearTimeout(tipTimers.get(el));
+    }
+    announceLive(label);
+    const timeout=setTimeout(()=>{
+      el.setAttribute('data-tip',el.getAttribute('data-tip-default')||'');
+      tipTimers.delete(el);
+    },PULSE_TIMEOUT);
+    tipTimers.set(el,timeout);
   }
 
   document.querySelectorAll('button.copy').forEach(btn=>{
@@ -481,13 +523,6 @@ const script = `<script>(function(){
       }catch(err){
         fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
       }
-    });
-  });
-
-  document.querySelectorAll('button.run').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const url=decodeURIComponent(btn.getAttribute('data-run'));
-      window.location.href=url;
     });
   });
 
@@ -522,6 +557,7 @@ const html = `<!doctype html>
     <header class="topbar">
       <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
     </header>
+    <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <main>
       <h1>BSP Auto – Bookmarklets</h1>
       <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
