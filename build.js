@@ -393,8 +393,9 @@ div.more {
 
 const cardsHtml = entries
   .map(e => {
-    const descContent = e.desc ? escapeHtml(e.desc) : "No description";
-    const details = `<details><summary>More info</summary><div class="more">${descContent}</div></details>`;
+    const details = e.desc
+      ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
+      : "";
     return `<article class="card" data-id="${escapeHtml(e.name)}">
       <div class="row1">
         <div class="row1-left">
