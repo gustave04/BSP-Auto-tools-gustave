@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * build.js — modern bookmarklet landing page (EN)
  * - Reads src/*.js (files NOT starting with '_') and builds bookmarklets
