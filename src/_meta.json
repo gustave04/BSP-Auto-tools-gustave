@@ -1,17 +1,19 @@
 {
   "order": [
-    "bspAutoFillBookmarklet.js",
-    "bspAutoCopyBookmarklet.js"
+    "bspAutoCopyBookmarklet.js",
+    "bspAutoFillBookmarklet.js"
+    
   ],
   "items": {
-    "bspAutoFillBookmarklet.js": {
-      "name": "fillBookmarklet",
-      "desc": "Füllt das BSP-Formular automatisch.",
-      "wrap": true
-    },
     "bspAutoCopyBookmarklet.js": {
-      "name": "copyBookmarklet",
+      "name": "copy_Bookmarklet",
       "desc": "Kopiert strukturierte Daten in die Zwischenablage.",
+      "wrap": true
+   },
+    
+    "bspAutoFillBookmarklet.js": {
+      "name": "fill_Bookmarklet",
+      "desc": "Füllt das BSP-Formular automatisch.",
       "wrap": true
     }
   }
