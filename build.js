@@ -193,6 +193,18 @@ body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
   box-shadow: var(--shadow-hover);
@@ -416,34 +428,12 @@ const script = `<script>(function(){
   const root=document.documentElement;
   const themeBtn=document.getElementById('themeToggle');
   const exportBtn=document.getElementById('exportAll');
+  const liveRegion=document.getElementById('liveRegion');
   const prefersDark=window.matchMedia('(prefers-color-scheme: dark)');
-  let memoryTheme='auto';
-  let resetTipTimer=null;
-  let baseTip='Toggle theme (current: auto)';
-
-  function setBaseTip(mode){
-    baseTip='Toggle theme (current: '+mode+')';
-    if(!themeBtn) return;
-    themeBtn.dataset.mode=mode;
-    themeBtn.setAttribute('aria-pressed', mode!=='auto');
-    themeBtn.setAttribute('aria-label', baseTip);
-    if(!resetTipTimer){
-      themeBtn.setAttribute('data-tip', baseTip);
-    }
-  }
-
-  function safeGetTheme(){
-    try{
-      const storage=window.localStorage;
-      if(!storage) return memoryTheme;
-      const stored=storage.getItem('theme');
-      if(stored===null||stored===undefined||stored==='') return memoryTheme;
-      memoryTheme=stored;
-      return stored;
-    }catch(e){
-      return memoryTheme;
-    }
-  }
+  const PULSE_TIMEOUT=1200;
+  const tipTimers=new WeakMap();
+  let liveMessageTimer=null;
+  let liveResetTimer=null;
 
   function applyTheme(mode){
     const chosen=mode==='auto'?(prefersDark.matches?'dark':'light'):mode;
@@ -496,10 +486,35 @@ const script = `<script>(function(){
     return ok;
   }
 
+  function announceLive(message){
+    if(!liveRegion) return;
+    liveRegion.textContent='';
+    if(liveMessageTimer){clearTimeout(liveMessageTimer);}
+    if(liveResetTimer){clearTimeout(liveResetTimer);}
+    liveMessageTimer=setTimeout(()=>{
+      liveRegion.textContent=message;
+      liveMessageTimer=null;
+    },50);
+    liveResetTimer=setTimeout(()=>{
+      liveRegion.textContent='';
+      liveResetTimer=null;
+    },PULSE_TIMEOUT);
+  }
+
   function pulse(el,label){
-    const prev=el.getAttribute('data-tip')||'';
+    if(!el.hasAttribute('data-tip-default')){
+      el.setAttribute('data-tip-default',el.getAttribute('data-tip')||'');
+    }
     el.setAttribute('data-tip',label);
-    setTimeout(()=>el.setAttribute('data-tip',prev),1200);
+    if(tipTimers.has(el)){
+      clearTimeout(tipTimers.get(el));
+    }
+    announceLive(label);
+    const timeout=setTimeout(()=>{
+      el.setAttribute('data-tip',el.getAttribute('data-tip-default')||'');
+      tipTimers.delete(el);
+    },PULSE_TIMEOUT);
+    tipTimers.set(el,timeout);
   }
 
   document.querySelectorAll('button.copy').forEach(btn=>{
@@ -545,6 +560,7 @@ const html = `<!doctype html>
     <header class="topbar">
       <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
     </header>
+    <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <main>
       <h1>BSP Auto – Bookmarklets</h1>
       <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
