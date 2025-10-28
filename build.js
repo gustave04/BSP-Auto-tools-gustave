@@ -1,12 +1,3 @@
-/**
- * build.js — modern bookmarklet landing page (EN)
- * - Reads src/*.js (files NOT starting with '_') and builds bookmarklets
- * - Source code is kept UNCHANGED (no minify)
- * - Optional src/_meta.json controls display name, bookmark name, description, order, wrap
- * - Outputs dist/index.html with a compact, left-to-right layout and dark-mode toggle
- */
-
-
 const fs = require("fs");
 const path = require("path");
 
