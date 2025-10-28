@@ -1,0 +1,18 @@
+{
+  "order": [
+    "bspAutoFillBookmarklet.js",
+    "bspAutoCopyBookmarklet.js"
+  ],
+  "items": {
+    "bspAutoFillBookmarklet.js": {
+      "name": "fillBookmarklet",
+      "desc": "Füllt das BSP-Formular automatisch.",
+      "wrap": true
+    },
+    "bspAutoCopyBookmarklet.js": {
+      "name": "copyBookmarklet",
+      "desc": "Kopiert strukturierte Daten in die Zwischenablage.",
+      "wrap": true
+    }
+  }
+}
