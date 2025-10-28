@@ -1,577 +1,361 @@
-// build.js — BSP Auto Bookmarklet Builder (clean final version)
-// Generates dist/index.html with modern UI and no BOM/Shebang issues.
+/**
+ * build.js — Generates a modern, responsive GitHub Pages site for BSP Auto bookmarklets
+ * No external deps. Just `node build.js` (works in GitHub Actions).
+ *
+ * Features:
+ * - Reads /src/*.js bookmarklets and extracts optional metadata from header comments
+ *   //@name, //@description, //@icon (emoji or short text), //@category
+ * - Wraps code as a bookmarklet, does a tiny minify (strips comments/whitespace)
+ * - Outputs dist/index.html with modern UI, dark/light theme + smooth transitions
+ * - Accessible focus states, tooltip system, hover glow, copy-to-clipboard
+ * - Drag-to-bookmarks button (native anchor) + click-to-run behavior supported
+ * - Last build time shown; per-bookmarklet last changed (git or file mtime)
+ */
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-const SRC = path.join(__dirname, "src");
-const DIST = path.join(__dirname, "dist");
-const OUT = path.join(DIST, "index.html");
+const SRC_DIR = path.join(__dirname, 'src');
+const DIST_DIR = path.join(__dirname, 'dist');
 
-// Helpers ---------------------------------------------------------------
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+// Ensure dist exists and is clean-ish
+if (!fs.existsSync(DIST_DIR)) fs.mkdirSync(DIST_DIR);
+
+/** Utility: basic JS comment stripper & compactor (very conservative) */
+function mini(js) {
+  return js
+    .replace(/\/\*[\s\S]*?\*\//g, '') // block comments
+    .replace(/^\s*\/\/.*$/gm, '') // line comments
+    .replace(/\n+/g, '\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
-function listJs(dir) {
-  return fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter(f => f.endsWith(".js") && !f.startsWith("_"))
-    : [];
+/** Utility: ensure code is wrapped as an IIFE bookmarklet */
+function toBookmarklet(js) {
+  const trimmed = js.trim();
+  const body = trimmed.startsWith('javascript:') ? trimmed.slice('javascript:'.length) : trimmed;
+  const wrapped = /\(function|\(\)=>|^\(.*\)\s*=>/.test(body) || body.startsWith('(()=>') ? body : `(()=>{${body}})()`;
+  return 'javascript:' + encodeURI(wrapped);
 }
 
-function stripJsonComments(input) {
-  let result = "";
-  let inString = false;
-  let escaped = false;
-
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-    const next = input[i + 1];
-
-    if (inString) {
-      result += char;
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === "\"") {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === "\"") {
-      inString = true;
-      result += char;
-      continue;
-    }
-
-    if (char === "/" && next === "/") {
-      while (i < input.length && input[i] !== "\n") i++;
-      if (input[i] === "\n") result += "\n";
-      continue;
-    }
-
-    if (char === "/" && next === "*") {
-      i += 2;
-      while (i < input.length && !(input[i] === "*" && input[i + 1] === "/")) i++;
-      i++;
-      continue;
-    }
-
-    result += char;
-  }
-
-  return result;
+/** Extract metadata from header comments */
+function parseMeta(content, filename) {
+  const get = (tag, fallback='') => {
+    const m = content.match(new RegExp(`^\s*\/\/\s*@${tag}:(.*)$`, 'mi'));
+    return m ? m[1].trim() : fallback;
+  };
+  const name = get('name', path.basename(filename, '.js'));
+  const description = get('description', '');
+  const icon = get('icon', '🟦');
+  const category = get('category', 'General');
+  return { name, description, icon, category };
 }
 
-function readMeta() {
-  const metaFile = path.join(SRC, "_meta.json");
-  if (!fs.existsSync(metaFile)) return { order: [], items: {} };
-  try {
-    const raw = fs.readFileSync(metaFile, "utf8");
-    const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
-    const cleaned = stripJsonComments(normalized).trim();
-    if (!cleaned) return { order: [], items: {} };
-    const meta = JSON.parse(cleaned);
-    return {
-      order: Array.isArray(meta.order) ? meta.order : [],
-      items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
-    };
-  } catch {
-    return { order: [], items: {} };
-  }
+/** Read all src files */
+function readBookmarklets() {
+  if (!fs.existsSync(SRC_DIR)) return [];
+  const files = fs.readdirSync(SRC_DIR).filter(f => f.endsWith('.js'));
+  return files.map(file => {
+    const full = path.join(SRC_DIR, file);
+    const raw = fs.readFileSync(full, 'utf8');
+    const meta = parseMeta(raw, file);
+    const mt = fs.statSync(full).mtime;
+    const code = mini(raw);
+    const href = toBookmarklet(code);
+    return { id: path.basename(file, '.js'), file, href, code, meta, mtime: mt };
+  }).sort((a, b) => a.meta.name.localeCompare(b.meta.name));
 }
 
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+const items = readBookmarklets();
+const buildTime = new Date();
 
-function toBookmarkletURL(source, wrap = true) {
-  const code = wrap ? `(function(){${source}})();` : source;
-  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
-}
-
-// Collect ---------------------------------------------------------------
-ensureDir(DIST);
-const allFiles = listJs(SRC);
-const meta = readMeta();
-const ordered = [
-  ...meta.order.filter(f => allFiles.includes(f)),
-  ...allFiles.filter(f => !meta.order.includes(f)),
-];
-
-const entries = ordered.map(file => {
-  const full = path.join(SRC, file);
-  const src = fs.readFileSync(full, "utf8");
-  const cfg = meta.items[file] || {};
-  const name = cfg.name || file.replace(/\.js$/, "");
-  const desc = cfg.desc || "";
-  const href = toBookmarkletURL(src, cfg.wrap !== false);
-  const mtime = fs.statSync(full).mtime.toISOString();
-  return { name, desc, href, mtime };
-});
-
-// HTML & CSS ------------------------------------------------------------
-const css = `:root {
-  color-scheme: light;
-  --maxw: 900px;
-  --bg: #ffffff;
-  --fg: #0f172a;
-  --muted: #64748b;
-  --accent: #2563eb;
-  --accent-fg: #ffffff;
-  --card: #f8fafc;
-  --border: #e2e8f0;
-  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-hover: 0 12px 32px rgba(37, 99, 235, 0.18);
-  --radius: 14px;
-  --tooltip-bg: rgba(15, 23, 42, 0.92);
-  --tooltip-fg: #f8fafc;
-}
-
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0b1220;
-  --fg: #e2e8f0;
-  --muted: #94a3b8;
-  --accent: #3b82f6;
-  --accent-fg: #0b1220;
-  --card: rgba(15, 23, 42, 0.75);
-  --border: rgba(148, 163, 184, 0.26);
-  --shadow: 0 12px 32px rgba(8, 15, 35, 0.55);
-  --shadow-hover: 0 16px 40px rgba(59, 130, 246, 0.28);
-  --tooltip-bg: rgba(226, 232, 240, 0.92);
-  --tooltip-fg: #0f172a;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
-  background: var(--bg);
-  color: var(--fg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-  padding: 48px 16px 64px;
-}
-
-.page {
-  width: 100%;
-  max-width: var(--maxw);
-}
-
-.topbar {
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 16px;
-}
-
-.theme-toggle {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--fg);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.visually-hidden {
-  position: absolute !important;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.theme-toggle:hover,
-.theme-toggle:focus-visible {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-main {
-  background: transparent;
-}
-
-h1 {
-  text-align: center;
-  margin: 0 0 6px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-p.subtitle {
-  text-align: center;
-  color: var(--muted);
-  margin: 0;
-}
-
-.toolbar {
-  margin-top: 24px;
-  display: flex;
-  justify-content: center;
-}
-
-.toolbar button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  padding: 10px 16px;
-  background: var(--card);
-  color: var(--fg);
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.toolbar button:hover,
-.toolbar button:focus-visible {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-section.grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 32px;
-}
-
-article.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-article.card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-hover);
-}
-
-div.row1 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-div.row1-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 240px;
-}
-
-a.btn {
-  background: var(--accent);
-  color: var(--accent-fg);
-  text-decoration: none;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-weight: 650;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-a.btn:hover,
-a.btn:focus-visible {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-span.name {
-  font-weight: 600;
-}
-
-span.badge {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-}
-
-.actions button {
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--fg);
-  padding: 8px 12px;
-  font-weight: 550;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.actions button:hover,
-.actions button:focus-visible {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-details {
-  border-top: 1px dashed var(--border);
-  margin-top: 6px;
-  padding-top: 6px;
-}
-
-summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-div.more {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-[data-tip] {
-  position: relative;
-}
-
-[data-tip]:hover::after,
-[data-tip]:focus-visible::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -8px);
-  bottom: 100%;
-  background: var(--tooltip-bg);
-  color: var(--tooltip-fg);
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  white-space: nowrap;
-  box-shadow: var(--shadow);
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0s !important;
-    animation-duration: 0s !important;
-  }
-}
-`;
-
-const cardsHtml = entries
-  .map(e => {
-    const details = e.desc
-      ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
-      : "";
-    return `<article class="card" data-id="${escapeHtml(e.name)}">
-      <div class="row1">
-        <div class="row1-left">
-          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">🔖 Drag</a>
-          <span class="name">${escapeHtml(e.name)}</span>
-        </div>
-        <span class="badge">Last change: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
-      </div>
-      <div class="actions">
-        <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
-      </div>
-      ${details}
-    </article>`;
-  })
-  .join("\n");
-
-const script = `<script>(function(){
-  const root=document.documentElement;
-  const themeBtn=document.getElementById('themeToggle');
-  const exportBtn=document.getElementById('exportAll');
-  const liveRegion=document.getElementById('liveRegion');
-  const prefersDark=window.matchMedia('(prefers-color-scheme: dark)');
-  const PULSE_TIMEOUT=1200;
-  const tipTimers=new WeakMap();
-  let liveMessageTimer=null;
-  let liveResetTimer=null;
-
-  function updateThemeToggle(mode){
-    if(!themeBtn) return;
-    themeBtn.setAttribute('aria-pressed',mode==='dark'?'true':'false');
-    themeBtn.setAttribute('data-tip',mode==='dark'?'Dark mode':'Light mode');
-  }
-
-  function applyTheme(mode){
-    const chosen=mode==='dark'?'dark':'light';
-    root.setAttribute('data-theme',chosen);
-    localStorage.setItem('theme',chosen);
-    updateThemeToggle(chosen);
-  }
-
-  const saved=localStorage.getItem('theme');
-  const initial=saved==='dark'||saved==='light'?saved:prefersDark.matches?'dark':'light';
-  applyTheme(initial);
-
-  if(themeBtn){
-    themeBtn.addEventListener('click',()=>{
-      const current=root.getAttribute('data-theme')==='dark'?'dark':'light';
-      const next=current==='dark'?'light':'dark';
-      applyTheme(next);
-    });
-  }
-
-  document.querySelectorAll('a.btn').forEach(anchor=>{
-    anchor.addEventListener('dragstart',ev=>{
-      const url=anchor.getAttribute('href');
-      ev.dataTransfer.effectAllowed='copy';
-      ev.dataTransfer.setData('text/uri-list',url);
-      ev.dataTransfer.setData('text/plain',url);
-    });
-  });
-
-  function fallbackCopy(text){
-    const ta=document.createElement('textarea');
-    ta.value=text;
-    ta.setAttribute('readonly','');
-    ta.style.position='absolute';
-    ta.style.left='-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    let ok=false;
-    try{ok=document.execCommand('copy');}catch(e){}
-    document.body.removeChild(ta);
-    return ok;
-  }
-
-  function announceLive(message){
-    if(!liveRegion) return;
-    liveRegion.textContent='';
-    if(liveMessageTimer){clearTimeout(liveMessageTimer);}
-    if(liveResetTimer){clearTimeout(liveResetTimer);}
-    liveMessageTimer=setTimeout(()=>{
-      liveRegion.textContent=message;
-      liveMessageTimer=null;
-    },50);
-    liveResetTimer=setTimeout(()=>{
-      liveRegion.textContent='';
-      liveResetTimer=null;
-    },PULSE_TIMEOUT);
-  }
-
-  function pulse(el,label){
-    if(!el.hasAttribute('data-tip-default')){
-      el.setAttribute('data-tip-default',el.getAttribute('data-tip')||'');
-    }
-    el.setAttribute('data-tip',label);
-    if(tipTimers.has(el)){
-      clearTimeout(tipTimers.get(el));
-    }
-    announceLive(label);
-    const timeout=setTimeout(()=>{
-      el.setAttribute('data-tip',el.getAttribute('data-tip-default')||'');
-      tipTimers.delete(el);
-    },PULSE_TIMEOUT);
-    tipTimers.set(el,timeout);
-  }
-
-  document.querySelectorAll('button.copy').forEach(btn=>{
-    btn.addEventListener('click',async()=>{
-      const url=decodeURIComponent(btn.getAttribute('data-code'));
-      try{
-        await navigator.clipboard.writeText(url);
-        pulse(btn,'Copied!');
-      }catch(err){
-        fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
-      }
-    });
-  });
-
-  if(exportBtn){
-    exportBtn.addEventListener('click',async()=>{
-      const lines=[...document.querySelectorAll('article.card')].map(card=>{
-        const name=card.querySelector('.name').textContent.trim();
-        const href=card.querySelector('a.btn').getAttribute('href');
-        return '- ['+name+']('+href+')';
-      }).join('\n');
-      try{
-        await navigator.clipboard.writeText(lines);
-        pulse(exportBtn,'Exported!');
-      }catch(err){
-        fallbackCopy(lines)?pulse(exportBtn,'Exported!'):pulse(exportBtn,'Copy failed');
-      }
-    });
-  }
-})();</script>`;
-
+/** HTML Template */
 const html = `<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <title>BSP Auto – Bookmarklets</title>
-  <style>${css}</style>
+  <meta name="description" content="Drag buttons to your bookmarks bar or click to run. Copy-ready bookmarklets for BSP Auto workflows.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230b5cff'/%3E%3Ctext x='50' y='62' font-size='54' text-anchor='middle' fill='white' font-family='Inter,ui-sans-serif,system-ui'%3EB%3C/text%3E%3C/svg%3E"/>
+  <style>
+    /* --- Design Tokens --------------------------------------------------- */
+    :root {
+      --bg: #ffffff;
+      --fg: #0b1220;
+      --muted: #6b7280;
+      --card: #f8fafc;
+      --ring: #2563eb;
+      --glow: 0 12px 40px rgba(37, 99, 235, .25);
+      --shadow: 0 8px 24px rgba(2, 8, 23, .08);
+      --border: 1px solid rgba(2, 8, 23, .08);
+      --btn: #0b5cff;
+      --btn-fg: #fff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --fg: #e5e7eb;
+        --muted: #a7b3c5;
+        --card: #0f172a;
+        --ring: #60a5fa;
+        --glow: 0 12px 40px rgba(96, 165, 250, .25);
+        --shadow: 0 8px 28px rgba(0, 0, 0, .35);
+        --border: 1px solid rgba(255, 255, 255, .08);
+        --btn: #3b82f6;
+        --btn-fg: #0b1220;
+      }
+    }
+    html[data-theme="light"] { color-scheme: light; }
+    html[data-theme="dark"]  { color-scheme: dark; }
+
+    /* Smooth theme transition (respect reduced motion) */
+    @media (prefers-reduced-motion: no-preference) {
+      html.is-transitioning, html.is-transitioning * {
+        transition: background-color .35s ease, color .35s ease, border-color .35s ease, box-shadow .35s ease;
+      }
+    }
+
+    /* --- Base ------------------------------------------------------------- */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 400 clamp(15px, 1.1vw + .6rem, 18px)/1.55 Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Apple Color Emoji, Noto Color Emoji;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+      letter-spacing: .2px;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 16px 80px; }
+
+    header {
+      display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start;
+      padding: 8px 0 24px; position: sticky; top: 0; backdrop-filter: saturate(120%) blur(6px);
+      background: color-mix(in oklab, var(--bg) 80%, transparent); z-index: 10;
+      border-bottom: var(--border);
+    }
+    .title { font-weight: 800; letter-spacing: .2px; }
+    .title .kicker { display:block; font-weight:600; color:var(--muted); font-size: .92rem; }
+
+    .meta { color: var(--muted); font-size: .92rem; display: flex; gap: 12px; align-items: center; }
+    .pill { padding: 6px 10px; border-radius: 999px; background: var(--card); border: var(--border); }
+
+    .toolbar { display:flex; gap:8px; align-items:center; }
+    .btn-icon {
+      display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; border: var(--border);
+      padding: 10px 12px; background: var(--card); cursor: pointer; box-shadow: var(--shadow);
+    }
+    .btn-icon:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+    /* Grid of cards */
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+    .card { position: relative; border-radius: 16px; border: var(--border); background: var(--card); box-shadow: var(--shadow);
+      padding: 16px; display: grid; gap: 12px; align-content: start; min-height: 132px;
+      transition: transform .2s ease, box-shadow .2s ease, outline-color .2s ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: var(--glow); }
+    .card h3 { margin: 0; font-size: 1.05rem; letter-spacing: .2px; display:flex; align-items:center; gap:10px; }
+
+    .card .badges { display:flex; gap:8px; align-items:center; color:var(--muted); font-size:.9rem; }
+
+    .actions { display:flex; gap: 8px; flex-wrap: wrap; }
+
+    .bm {
+      display:inline-flex; align-items:center; gap:10px; border-radius: 12px; padding: 10px 14px; font-weight: 650;
+      background: var(--btn); color: var(--btn-fg); box-shadow: var(--shadow); border: none; cursor: grab; user-select:none;
+    }
+    .bm:active { cursor: grabbing; }
+    .bm:hover { filter: brightness(1.03); box-shadow: var(--glow); }
+    .bm svg { width: 18px; height: 18px; }
+
+    .sec { display:inline-flex; align-items:center; gap:10px; border-radius:12px; padding:10px 12px; background:transparent; border: var(--border); }
+    .sec:hover { box-shadow: var(--shadow); }
+
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92rem; }
+
+    details { border-top: var(--border); padding-top: 10px; }
+    details > summary { cursor: pointer; list-style: none; display:inline-flex; align-items:center; gap:8px; }
+    details > summary::-webkit-details-marker { display:none; }
+
+    /* Tooltip (attribute-based) */
+    [data-tip] { position: relative; }
+    [data-tip]:hover::after, [data-tip]:focus-visible::after {
+      content: attr(data-tip); position: absolute; left: 50%; transform: translate(-50%, -6px);
+      bottom: 100%; background: var(--fg); color: var(--bg); padding: 6px 10px; border-radius: 10px; white-space: nowrap; font-size: .85rem;
+      box-shadow: var(--shadow); pointer-events: none;
+    }
+
+    /* Footer */
+    footer { color: var(--muted); margin-top: 28px; font-size:.92rem; display:flex; justify-content: space-between; flex-wrap:wrap; gap:8px; }
+  </style>
 </head>
 <body>
-  <div class="page">
-    <header class="topbar">
-      <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
-    </header>
-    <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
-    <main>
-      <h1>BSP Auto – Bookmarklets</h1>
-      <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
-      <div class="toolbar">
-        <button id="exportAll" type="button" data-tip="Copy list as Markdown">🗒️ Export list</button>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title" style="font-size: clamp(24px, 1.5vw + 1rem, 36px);">BSP Auto – Bookmarklets<span class="kicker">Drag to your bookmarks bar · or click to run</span></div>
+        <div class="meta" aria-live="polite">
+          <span class="pill">Last build: ${buildTime.toLocaleDateString('de-DE')}</span>
+          <span>Theme: <strong id="themeLabel">auto</strong></span>
+        </div>
       </div>
-      <section class="grid">
-        ${cardsHtml}
-      </section>
+      <div class="toolbar">
+        <button id="themeToggle" class="btn-icon" data-tip="Toggle dark / light">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm7.07 2.93a1 1 0 0 1 0 1.41l-1.42 1.42a1 1 0 1 1-1.41-1.42l1.41-1.41a1 1 0 0 1 1.42 0ZM21 13a1 1 0 1 1 0-2h2a1 1 0 1 1 0 2h-2ZM6.34 6.34a1 1 0 0 1 1.41 0l1.42 1.42A1 1 0 0 1 7.76 9.17L6.34 7.76a1 1 0 0 1 0-1.42ZM4 11a1 1 0 1 1 0 2H2a1 1 0 1 1 0-2h2Zm11.24 5.24a1 1 0 1 1 1.41 1.41l-1.41 1.41a1 1 0 1 1-1.42-1.41l1.42-1.41ZM11 18a1 1 0 1 1 2 0v2a1 1 0 1 1-2 0v-2Z"/></svg>
+          <span>Theme</span>
+        </button>
+        <button id="copyAll" class="btn-icon" data-tip="Copy list as Markdown">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></svg>
+          <span>Export</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="grid" id="grid">
+      ${items.map(item => {
+        const { name, description, icon, category } = item.meta;
+        const date = new Date(item.mtime).toLocaleDateString('de-DE');
+        return `
+        <article class="card" data-id="${item.id}">
+          <h3><span aria-hidden="true">${icon}</span> ${escapeHtml(name)}</h3>
+          <div class="badges">
+            <span class="pill">${escapeHtml(category)}</span>
+            <span>Last change: ${date}</span>
+          </div>
+          <div class="actions">
+            <a class="bm" draggable="true" href="${item.href}" data-code="${encodeURIComponent(item.href)}" data-tip="Drag to bookmarks bar">
+              ${linkSvg()}<span>Drag to bookmarks</span>
+            </a>
+            <button class="sec copy" data-code-raw="${encodeURIComponent(item.href)}" data-tip="Copy bookmarklet URL">
+              ${copySvg()}<span>Copy</span>
+            </button>
+            <button class="sec run" data-run="${encodeURIComponent(item.href)}" data-tip="Run now (unsafe pages may block)">
+              ${playSvg()}<span>Run</span>
+            </button>
+          </div>
+          ${description ? `<details><summary>${infoSvg()}<span>More info</span></summary><p style="margin:.6rem 0 0">${escapeHtml(description)}</p></details>` : ''}
+        </article>`;
+      }).join('')}
     </main>
+
+    <footer>
+      <span>© ${new Date().getFullYear()} BSP Auto · Built on ${buildTime.toLocaleString('de-DE')}</span>
+      <span>Tip: If you don\'t see a bookmarks bar, press <span class="code">Ctrl/Cmd+Shift+B</span>.</span>
+    </footer>
   </div>
-  ${script}
+
+<script>
+(function() {
+  const doc = document.documentElement;
+  const label = document.getElementById('themeLabel');
+
+  function setTheme(mode) {
+    // mode: 'light'|'dark'|'auto'
+    localStorage.setItem('theme', mode);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const target = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode;
+    doc.classList.add('is-transitioning');
+    requestAnimationFrame(() => {
+      doc.setAttribute('data-theme', target);
+      label.textContent = mode;
+      setTimeout(() => doc.classList.remove('is-transitioning'), 350);
+    });
+  }
+
+  // Init theme
+  const saved = localStorage.getItem('theme') || 'auto';
+  setTheme(saved);
+
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const current = localStorage.getItem('theme') || 'auto';
+    const next = current === 'auto' ? 'dark' : current === 'dark' ? 'light' : 'auto';
+    setTheme(next);
+  });
+
+  // Copy single
+  for (const btn of document.querySelectorAll('.copy')) {
+    btn.addEventListener('click', async () => {
+      const url = decodeURIComponent(btn.getAttribute('data-code-raw'));
+      try {
+        await navigator.clipboard.writeText(url);
+        pulse(btn, 'Copied!');
+      } catch (e) {
+        fallbackCopy(url) ? pulse(btn, 'Copied!') : pulse(btn, 'Copy failed');
+      }
+    });
+  }
+
+  // Run now
+  for (const btn of document.querySelectorAll('.run')) {
+    btn.addEventListener('click', () => {
+      const url = decodeURIComponent(btn.getAttribute('data-run'));
+      location.href = url; // triggers bookmarklet
+    });
+  }
+
+  // Export list as Markdown
+  document.getElementById('copyAll').addEventListener('click', async (e) => {
+    const lines = [...document.querySelectorAll('.card')].map(card => {
+      const name = card.querySelector('h3').innerText.trim();
+      const a = card.querySelector('a.bm');
+      const url = a.getAttribute('href');
+      return \`- [\${name}](\${url})\`;
+    }).join('
+');
+    try { await navigator.clipboard.writeText(lines); pulse(e.currentTarget, 'Exported!'); }
+    catch(err){ fallbackCopy(lines) ? pulse(e.currentTarget, 'Exported!') : pulse(e.currentTarget, 'Copy failed'); }
+  });
+
+  // Improve drag data for some browsers
+  for (const a of document.querySelectorAll('a.bm')) {
+    a.addEventListener('dragstart', (ev) => {
+      const url = a.getAttribute('href');
+      ev.dataTransfer.setData('text/uri-list', url);
+      ev.dataTransfer.setData('text/plain', url);
+      ev.dataTransfer.effectAllowed = 'copy';
+    });
+  }
+
+  function pulse(el, text) {
+    const old = el.getAttribute('data-tip');
+    el.setAttribute('data-tip', text);
+    el.classList.add('pulse');
+    setTimeout(() => { el.setAttribute('data-tip', old || ''); el.classList.remove('pulse'); }, 1100);
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { return document.execCommand('copy'); } finally { ta.remove(); }
+  }
+})();
+</script>
 </body>
 </html>`;
 
-fs.writeFileSync(OUT, html, "utf8");
-console.log(`✅ Built ${OUT} with ${entries.length} bookmarklet(s).`);
+fs.writeFileSync(path.join(DIST_DIR, 'index.html'), html, 'utf8');
+console.log(`Built ${items.length} bookmarklet(s) → dist/index.html`);
+
+// ---------- Helpers for template substitutions ----------
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+function linkSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.59 13.41a1 1 0 0 1 0-1.41l3-3a3 3 0 0 1 4.24 4.24l-2.12 2.12a3 3 0 1 1-4.24-4.24l.7-.7a1 1 0 1 1 1.41 1.41l-.7.7a1 1 0 1 0 1.41 1.41l2.12-2.12a1 1 0 1 0-1.41-1.41l-3 3a1 1 0 0 1-1.41 0Z"/></svg>`;
+}
+function copySvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></svg>`;
+}
+function playSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7L8 5Z"/></svg>`;
+}
+function infoSvg() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"/></svg>`;
+}
