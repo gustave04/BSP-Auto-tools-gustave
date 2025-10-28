@@ -19,14 +19,64 @@ function listJs(dir) {
     : [];
 }
 
+function stripJsonComments(input) {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const next = input[i + 1];
+
+    if (inString) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      while (i < input.length && input[i] !== "\n") i++;
+      if (input[i] === "\n") result += "\n";
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (i < input.length && !(input[i] === "*" && input[i + 1] === "/")) i++;
+      i++;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
 function readMeta() {
   const metaFile = path.join(SRC, "_meta.json");
   if (!fs.existsSync(metaFile)) return { order: [], items: {} };
   try {
-    const meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
+    const raw = fs.readFileSync(metaFile, "utf8");
+    const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+    const cleaned = stripJsonComments(normalized).trim();
+    if (!cleaned) return { order: [], items: {} };
+    const meta = JSON.parse(cleaned);
     return {
       order: Array.isArray(meta.order) ? meta.order : [],
-      items: typeof meta.items === "object" ? meta.items : {},
+      items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
     };
   } catch {
     return { order: [], items: {} };
