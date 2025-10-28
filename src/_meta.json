@@ -1,18 +1,15 @@
 {
-  "order": [
-    "bspAutoCopyBookmarklet.js",
-    "bspAutoFillBookmarklet.js"
-    
-  ],
+  "order": ["bspAutoCopyBookmarklet.js", "bspAutoFillBookmarklet.js"],
   "items": {
     "bspAutoCopyBookmarklet.js": {
-      "name": "copy_Bookmarklet",
+      "name": "Copy_Bookmarklet",          // Anzeigename in der UI
+      "bookmarkName": "Copy – BSP Resa",   // Name des gespeicherten Lesezeichens
       "desc": "Kopiert strukturierte Daten in die Zwischenablage.",
       "wrap": true
-   },
-    
+    },
     "bspAutoFillBookmarklet.js": {
-      "name": "fill_Bookmarklet",
+      "name": "Fill_Bookmarklet",
+      "bookmarkName": "Fill – BSP Tarifs",
       "desc": "Füllt das BSP-Formular automatisch.",
       "wrap": true
     }
