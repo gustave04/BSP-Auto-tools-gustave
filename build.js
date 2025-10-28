@@ -1,6 +1,3 @@
-// build.js — BSP Auto Bookmarklet Builder (clean final version)
-// Generates dist/index.html with modern UI and no BOM/Shebang issues.
-
 const fs = require("fs");
 const path = require("path");
 
