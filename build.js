@@ -118,9 +118,418 @@ const entries = ordered.map(file => {
 });
 
 // HTML & CSS ------------------------------------------------------------
-const css = `:root{--maxw:900px;--radius:14px;--space:40px;--font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial;--bg:#ffffff;--fg:#0f172a;--muted:#64748b;--accent:#2563eb;--card:#f8fafc;--border:#e2e8f0;--btn-fg:#ffffff;--btn-shadow:0 10px 22px rgba(37,99,235,.25);--shadow:0 0 0 3px color-mix(in oklab,var(--accent)25%,transparent),0 6px 16px rgba(0,0,0,.06);}html[data-theme="dark"]{--bg:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--card:#1e293b;--border:#334155;--btn-fg:#0f172a;--btn-shadow:0 10px 22px rgba(56,189,248,.35);--shadow:0 0 0 3px color-mix(in oklab,var(--accent)35%,transparent),0 12px 24px rgba(15,23,42,.4);}body{margin:0;font-family:var(--font);background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:var(--space) 12px;transition:background .3s,color .3s;}main{width:100%;max-width:var(--maxw);}header.topbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;margin:0 auto 26px;width:100%;max-width:var(--maxw);}header.topbar-inner{display:flex;flex-direction:column;align-items:center;text-align:center;}div.topbar-spacer{width:44px;height:44px;}button.theme-toggle{align-items:center;appearance:none;background:var(--card);border:1px solid color-mix(in oklab,var(--accent)55%,#0000);border-radius:999px;box-shadow:var(--shadow);color:var(--fg);cursor:pointer;display:inline-flex;font-size:20px;height:44px;justify-content:center;transition:transform .2s,box-shadow .3s,background .3s,color .3s;width:44px;}button.theme-toggle:hover{transform:translateY(-1px);}button.theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}button.theme-toggle[aria-pressed=true]{background:var(--accent);color:var(--btn-fg);box-shadow:var(--shadow);}h1{margin:0;font-size:clamp(26px,4vw,36px);}p.subtitle{margin:6px 0 0;color:var(--muted);}section.grid{display:flex;flex-direction:column;gap:14px;}article.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;flex-direction:column;gap:6px;transition:.2s;}article.card:hover{box-shadow:var(--shadow);}div.row1{display:flex;align-items:center;gap:12px;justify-content:space-between;}div.row1-left{display:flex;align-items:center;gap:12px;flex:1;}a.btn{background:var(--accent);color:var(--btn-fg);text-decoration:none;padding:8px 14px;border-radius:10px;font-weight:600;transition:box-shadow .2s,transform .2s;}a.btn:hover{transform:translateY(-1px);box-shadow:var(--btn-shadow);}span.name{font-weight:600;}span.badge{font-size:12px;color:var(--muted);}details{border-top:1px dashed var(--border);margin-top:6px;padding-top:6px;}summary{cursor:pointer;color:var(--muted);font-size:13px;}div.more{font-size:13px;color:var(--muted);margin-top:4px;}`;
+const css = `:root {
+  color-scheme: light;
+  --maxw: 900px;
+  --bg: #ffffff;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --accent: #2563eb;
+  --accent-fg: #ffffff;
+  --card: #f8fafc;
+  --border: #e2e8f0;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-hover: 0 12px 32px rgba(37, 99, 235, 0.18);
+  --radius: 14px;
+  --tooltip-bg: rgba(15, 23, 42, 0.92);
+  --tooltip-fg: #f8fafc;
+}
 
-const html = `<!doctype html><html lang=en data-theme="light"><head><meta charset=utf-8><meta name=viewport content="width=device-width"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"><title>BSP Auto – Bookmarklets</title><style>${css}</style></head><body><main><header class=topbar><button class="theme-toggle" type=button aria-label="Toggle theme" aria-pressed=false>🌗</button><div class=topbar-inner><h1>BSP Auto – Bookmarklets</h1><p class=subtitle>Drag buttons to your bookmarks bar or click to run.</p></div><div class=topbar-spacer aria-hidden=true></div></header><section class=grid>${entries.map(e=>`<article class=card><div class=row1><div class=row1-left><a class=btn href="${e.href}">Drag to bookmarks</a><span class=name>${escapeHtml(e.name)}</span></div><span class=badge>Last change: ${new Date(e.mtime).toLocaleDateString('en-GB')}</span></div><details><summary>More info</summary><div class=more>${escapeHtml(e.desc)||'No description'}</div></details></article>`).join('')}</section></main><script>(()=>{const STORAGE_KEY="bsp-theme";const root=document.documentElement;const btn=document.querySelector(".theme-toggle");if(!btn)return;const prefersDark=window.matchMedia("(prefers-color-scheme: dark)");const setButtonState=value=>{btn.setAttribute("aria-pressed",String(value==="dark"));};const applyTheme=(theme,{persist}={persist:true})=>{const value=theme==="dark"?"dark":"light";root.setAttribute("data-theme",value);setButtonState(value);if(persist)localStorage.setItem(STORAGE_KEY,value);};const stored=localStorage.getItem(STORAGE_KEY);if(stored==="dark"||stored==="light"){applyTheme(stored,{persist:false});}else{applyTheme(prefersDark.matches?"dark":"light",{persist:false});}btn.addEventListener("click",()=>{const next=root.getAttribute("data-theme")==="dark"?"light":"dark";applyTheme(next,{persist:true});});prefersDark.addEventListener("change",event=>{if(localStorage.getItem(STORAGE_KEY))return;applyTheme(event.matches?"dark":"light",{persist:false});});})();</script></body></html>`;
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --fg: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #3b82f6;
+  --accent-fg: #0b1220;
+  --card: rgba(15, 23, 42, 0.75);
+  --border: rgba(148, 163, 184, 0.26);
+  --shadow: 0 12px 32px rgba(8, 15, 35, 0.55);
+  --shadow-hover: 0 16px 40px rgba(59, 130, 246, 0.28);
+  --tooltip-bg: rgba(226, 232, 240, 0.92);
+  --tooltip-fg: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 48px 16px 64px;
+}
+
+.page {
+  width: 100%;
+  max-width: var(--maxw);
+}
+
+.topbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.theme-toggle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+main {
+  background: transparent;
+}
+
+h1 {
+  text-align: center;
+  margin: 0 0 6px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+p.subtitle {
+  text-align: center;
+  color: var(--muted);
+  margin: 0;
+}
+
+.toolbar {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 10px 16px;
+  background: var(--card);
+  color: var(--fg);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toolbar button:hover,
+.toolbar button:focus-visible {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+section.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+article.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+article.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+div.row1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+div.row1-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 240px;
+}
+
+a.btn {
+  background: var(--accent);
+  color: var(--accent-fg);
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+a.btn:hover,
+a.btn:focus-visible {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+span.name {
+  font-weight: 600;
+}
+
+span.badge {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions button {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  padding: 8px 12px;
+  font-weight: 550;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.actions button:hover,
+.actions button:focus-visible {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+details {
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+div.more {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  bottom: 100%;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-fg);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}
+`;
+
+const cardsHtml = entries
+  .map(e => {
+    const descContent = e.desc ? escapeHtml(e.desc) : "No description";
+    const details = `<details><summary>More info</summary><div class="more">${descContent}</div></details>`;
+    return `<article class="card" data-id="${escapeHtml(e.name)}">
+      <div class="row1">
+        <div class="row1-left">
+          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">🔖 Drag</a>
+          <span class="name">${escapeHtml(e.name)}</span>
+        </div>
+        <span class="badge">Last change: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
+      </div>
+      <div class="actions">
+        <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
+        <button class="run" type="button" data-run="${encodeURIComponent(e.href)}" data-tip="Run now">▶️ Run</button>
+      </div>
+      ${details}
+    </article>`;
+  })
+  .join("\n");
+
+const script = `<script>(function(){
+  const root=document.documentElement;
+  const themeBtn=document.getElementById('themeToggle');
+  const exportBtn=document.getElementById('exportAll');
+  const prefersDark=window.matchMedia('(prefers-color-scheme: dark)');
+
+  function applyTheme(mode){
+    const chosen=mode==='auto'?(prefersDark.matches?'dark':'light'):mode;
+    root.setAttribute('data-theme', chosen);
+    localStorage.setItem('theme', mode);
+  }
+
+  const saved=localStorage.getItem('theme')||'auto';
+  applyTheme(saved);
+
+  if(themeBtn){
+    themeBtn.addEventListener('click',()=>{
+      const current=localStorage.getItem('theme')||'auto';
+      const next=current==='auto'?'dark':current==='dark'?'light':'auto';
+      applyTheme(next);
+      themeBtn.setAttribute('data-tip','Theme: '+next);
+      setTimeout(()=>themeBtn.setAttribute('data-tip','Toggle theme'),1200);
+    });
+  }
+
+  document.querySelectorAll('a.btn').forEach(anchor=>{
+    anchor.addEventListener('dragstart',ev=>{
+      const url=anchor.getAttribute('href');
+      ev.dataTransfer.effectAllowed='copy';
+      ev.dataTransfer.setData('text/uri-list',url);
+      ev.dataTransfer.setData('text/plain',url);
+    });
+  });
+
+  function fallbackCopy(text){
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.setAttribute('readonly','');
+    ta.style.position='absolute';
+    ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok=false;
+    try{ok=document.execCommand('copy');}catch(e){}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function pulse(el,label){
+    const prev=el.getAttribute('data-tip')||'';
+    el.setAttribute('data-tip',label);
+    setTimeout(()=>el.setAttribute('data-tip',prev),1200);
+  }
+
+  document.querySelectorAll('button.copy').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      const url=decodeURIComponent(btn.getAttribute('data-code'));
+      try{
+        await navigator.clipboard.writeText(url);
+        pulse(btn,'Copied!');
+      }catch(err){
+        fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
+      }
+    });
+  });
+
+  document.querySelectorAll('button.run').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const url=decodeURIComponent(btn.getAttribute('data-run'));
+      window.location.href=url;
+    });
+  });
+
+  if(exportBtn){
+    exportBtn.addEventListener('click',async()=>{
+      const lines=[...document.querySelectorAll('article.card')].map(card=>{
+        const name=card.querySelector('.name').textContent.trim();
+        const href=card.querySelector('a.btn').getAttribute('href');
+        return '- ['+name+']('+href+')';
+      }).join('\n');
+      try{
+        await navigator.clipboard.writeText(lines);
+        pulse(exportBtn,'Exported!');
+      }catch(err){
+        fallbackCopy(lines)?pulse(exportBtn,'Exported!'):pulse(exportBtn,'Copy failed');
+      }
+    });
+  }
+})();</script>`;
+
+const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>BSP Auto – Bookmarklets</title>
+  <style>${css}</style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
+    </header>
+    <main>
+      <h1>BSP Auto – Bookmarklets</h1>
+      <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
+      <div class="toolbar">
+        <button id="exportAll" type="button" data-tip="Copy list as Markdown">🗒️ Export list</button>
+      </div>
+      <section class="grid">
+        ${cardsHtml}
+      </section>
+    </main>
+  </div>
+  ${script}
+</body>
+</html>`;
 
 fs.writeFileSync(OUT, html, "utf8");
 console.log(`✅ Built ${OUT} with ${entries.length} bookmarklet(s).`);
