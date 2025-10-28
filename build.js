@@ -34,7 +34,7 @@ const entries=ordered.map(file=>{ const full=path.join(SRC_DIR,file); const sour
 
 // ------------------------ HTML/CSS -----------------------------------------
 const CSS=`
-:root{ --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0; --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18); --radius:16px; --maxw:680px; }
+:root{ --bg:#ffffff; --fg:#0f172a; --muted:#64748b; --card:#f8fafc; --border:#e2e8f0; --accent:#2563eb; --accent-contrast:#ffffff; --ring:rgba(37,99,235,.18); --radius:16px; --maxw:884px; }
 @media (prefers-color-scheme: dark){ :root{ --bg:#0b0d10; --fg:#e5e7eb; --muted:#9aa3af; --card:#12161b; --border:#1f2937; --accent:#3b82f6; --accent-contrast:#0b0d10; --ring:rgba(59,130,246,.28);} }
 *{box-sizing:border-box}
 html,body{height:100%}
