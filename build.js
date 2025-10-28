@@ -435,31 +435,28 @@ const script = `<script>(function(){
   let liveMessageTimer=null;
   let liveResetTimer=null;
 
-  function applyTheme(mode){
-    const chosen=mode==='auto'?(prefersDark.matches?'dark':'light'):mode;
-    root.setAttribute('data-theme', chosen);
-    memoryTheme=mode;
-    try{
-      const storage=window.localStorage;
-      if(storage) storage.setItem('theme', mode);
-    }catch(e){}
-    setBaseTip(mode);
+  function updateThemeToggle(mode){
+    if(!themeBtn) return;
+    themeBtn.setAttribute('aria-pressed',mode==='dark'?'true':'false');
+    themeBtn.setAttribute('data-tip',mode==='dark'?'Dark mode':'Light mode');
   }
 
-  const saved=safeGetTheme();
-  applyTheme(saved);
+  function applyTheme(mode){
+    const chosen=mode==='dark'?'dark':'light';
+    root.setAttribute('data-theme',chosen);
+    localStorage.setItem('theme',chosen);
+    updateThemeToggle(chosen);
+  }
+
+  const saved=localStorage.getItem('theme');
+  const initial=saved==='dark'||saved==='light'?saved:prefersDark.matches?'dark':'light';
+  applyTheme(initial);
 
   if(themeBtn){
     themeBtn.addEventListener('click',()=>{
-      const current=safeGetTheme();
-      const next=current==='auto'?'dark':current==='dark'?'light':'auto';
+      const current=root.getAttribute('data-theme')==='dark'?'dark':'light';
+      const next=current==='dark'?'light':'dark';
       applyTheme(next);
-      if(resetTipTimer) clearTimeout(resetTipTimer);
-      themeBtn.setAttribute('data-tip', 'Theme: '+next);
-      resetTipTimer=setTimeout(()=>{
-        resetTipTimer=null;
-        themeBtn.setAttribute('data-tip', baseTip);
-      },1200);
     });
   }
 
