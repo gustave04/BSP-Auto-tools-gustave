@@ -2,7 +2,7 @@ name: Build & Deploy (Pages)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ codex/fix-displayed-names-in-json ]
     paths: [ 'src/**', 'build.js', '.github/workflows/build.yml' ]
   workflow_dispatch:
 
