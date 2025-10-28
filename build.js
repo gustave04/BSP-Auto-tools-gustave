@@ -131,7 +131,7 @@ body{ margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui,
 h1{ margin:0 0 8px; font-size:clamp(22px,4vw,34px); letter-spacing:-.02em; }
 .subtitle{ margin:0 auto; max-width:720px; color:var(--muted); }
 .meta{ margin-top:8px; font-size:12px; color:var(--muted); }
-.grid{ margin-top:26px; display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+.grid{ margin-top:26px; display:grid; grid-template-columns:1fr; gap:10px; }
 .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:10px; transition:transform .08s ease,box-shadow .08s ease,border-color .08s ease; }
 .card:hover{ transform:translateY(-1px); box-shadow:0 8px 28px var(--ring); border-color:transparent; }
 .name{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; }
