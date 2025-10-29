@@ -105,95 +105,12 @@ function formatTimestamp(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function pluralize(count, singular) {
-  const numeric = Number(count);
-  const safeCount = Number.isFinite(numeric)
-    ? Math.max(1, Math.round(Math.abs(numeric)))
-    : 1;
-  return `${safeCount} ${singular}${safeCount === 1 ? "" : "s"}`;
-}
-
-function formatRelativeLastChange(isoString, reference = new Date()) {
-  const last = new Date(isoString);
-  if (Number.isNaN(last.getTime())) {
+function formatLastChangeAbsolute(isoString) {
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) {
     return "Unknown";
   }
-
-  let now = reference instanceof Date ? reference : new Date(reference);
-  if (Number.isNaN(now.getTime())) {
-    now = new Date();
-  }
-
-  const lastTime = last.getTime();
-  const nowTime = now.getTime();
-  if (!Number.isFinite(lastTime) || !Number.isFinite(nowTime)) {
-    return "Unknown";
-  }
-
-  const diffMsRaw = nowTime - lastTime;
-  const inFuture = diffMsRaw < 0;
-  const diffMs = Math.abs(diffMsRaw);
-  const minuteMs = 60 * 1000;
-  const dayMs = 24 * minuteMs;
-  const monthMs = 30 * dayMs;
-
-  let label;
-
-  if (diffMs < dayMs) {
-    const minutes = Math.max(1, Math.round(diffMs / minuteMs));
-    label = pluralize(minutes, "minute");
-  } else {
-    const rawDays = Math.floor(diffMs / dayMs);
-    const days = rawDays > 0 ? rawDays : 1;
-    if (days < 60) {
-      label = pluralize(days, "day");
-    } else {
-      const start = inFuture ? new Date(nowTime) : new Date(lastTime);
-      const end = inFuture ? new Date(lastTime) : new Date(nowTime);
-
-      let years = end.getFullYear() - start.getFullYear();
-      let months = end.getMonth() - start.getMonth();
-
-      if (end.getDate() < start.getDate()) {
-        months -= 1;
-      }
-
-      while (months < 0) {
-        years -= 1;
-        months += 12;
-      }
-
-      if (years < 0) {
-        years = 0;
-      }
-
-      const totalMonths = years * 12 + months;
-
-      if (totalMonths <= 0) {
-        const approxMonths = Math.max(1, Math.round(diffMs / monthMs));
-        label = pluralize(approxMonths, "month");
-      } else if (years === 0) {
-        label = pluralize(totalMonths, "month");
-      } else {
-        const remainingMonths = totalMonths - years * 12;
-        if (remainingMonths <= 0) {
-          label = pluralize(years, "year");
-        } else {
-          label = `${pluralize(years, "year")} / ${pluralize(remainingMonths, "month")}`;
-        }
-      }
-    }
-  }
-
-  if (!label) {
-    label = pluralize(1, "minute");
-  }
-
-  if (inFuture) {
-    return `in ${label}`;
-  }
-
-  return `${label} ago`;
+  return formatTimestamp(parsed);
 }
 
 function getLastChangeISO(file) {
@@ -692,7 +609,11 @@ const cardsHtml = entries
     const bookmarkLine = e.bookmarkName
       ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
       : "";
-    const lastChange = formatRelativeLastChange(e.mtime, buildNow);
+    const lastChangeAbsolute = formatLastChangeAbsolute(e.mtime);
+    const lastChangeLabel =
+      lastChangeAbsolute === "Unknown"
+        ? "Last change: Unknown"
+        : `Last change: ${lastChangeAbsolute}`;
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
@@ -704,7 +625,7 @@ const cardsHtml = entries
             ${bookmarkLine}
           </div>
         </div>
-        <span class="badge">Last change: ${escapeHtml(lastChange)}</span>
+        <span class="badge" data-last-change="${escapeHtml(e.mtime)}" data-last-change-absolute="${escapeHtml(lastChangeAbsolute)}">${escapeHtml(lastChangeLabel)}</span>
       </div>
       ${details}
     </article>`;
@@ -761,6 +682,76 @@ const script = `<script>
     function escapeHtmlLite(value){
       return value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+
+    function formatRelativeLastChangeRuntime(isoString, reference){
+      if(!isoString){return null;}
+      var last=new Date(isoString);
+      if(isNaN(last.getTime())){return null;}
+      var now=reference instanceof Date?reference:new Date(reference||Date.now());
+      if(isNaN(now.getTime())){now=new Date();}
+      var diffMsRaw=now.getTime()-last.getTime();
+      var inFuture=diffMsRaw<0;
+      var diffMs=Math.abs(diffMsRaw);
+      var minuteMs=60*1000;
+      var dayMs=24*minuteMs;
+      var monthMs=30*dayMs;
+      var label='';
+      if(diffMs<dayMs){
+        var minutes=Math.max(1,Math.round(diffMs/minuteMs));
+        label=minutes===1?'1 minute':minutes+' minutes';
+      }else{
+        var rawDays=Math.floor(diffMs/dayMs);
+        var days=rawDays>0?rawDays:1;
+        if(days<60){
+          label=days===1?'1 day':days+' days';
+        }else{
+          var start=inFuture?new Date(now.getTime()):new Date(last.getTime());
+          var end=inFuture?new Date(last.getTime()):new Date(now.getTime());
+          var years=end.getFullYear()-start.getFullYear();
+          var months=end.getMonth()-start.getMonth();
+          if(end.getDate()<start.getDate()){months-=1;}
+          while(months<0){years-=1;months+=12;}
+          if(years<0){years=0;}
+          var totalMonths=years*12+months;
+          if(totalMonths<=0){
+            var approxMonths=Math.max(1,Math.round(diffMs/monthMs));
+            label=approxMonths===1?'1 month':approxMonths+' months';
+          }else if(years===0){
+            label=totalMonths===1?'1 month':totalMonths+' months';
+          }else{
+            var remainingMonths=totalMonths-years*12;
+            if(remainingMonths<=0){
+              label=years===1?'1 year':years+' years';
+            }else{
+              var yearLabel=years===1?'1 year':years+' years';
+              var monthLabel=remainingMonths===1?'1 month':remainingMonths+' months';
+              label=yearLabel+' / '+monthLabel;
+            }
+          }
+        }
+      }
+      if(!label){label='1 minute';}
+      return inFuture?'in '+label:label+' ago';
+    }
+
+    function updateLastChangeBadges(){
+      var now=new Date();
+      document.querySelectorAll('.badge[data-last-change]').forEach(function(el){
+        var iso=el.getAttribute('data-last-change');
+        var absolute=el.getAttribute('data-last-change-absolute');
+        var relative=formatRelativeLastChangeRuntime(iso,now);
+        if(relative){
+          el.textContent='Last change: '+relative;
+        }else if(absolute){
+          el.textContent='Last change: '+absolute;
+        }else{
+          el.textContent='Last change: Unknown';
+        }
+      });
+    }
+
+    updateLastChangeBadges();
+    setInterval(updateLastChangeBadges,60*1000);
 
     document.querySelectorAll('a.btn').forEach(anchor=>{
       anchor.addEventListener('dragstart',ev=>{
