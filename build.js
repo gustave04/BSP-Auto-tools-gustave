@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const childProcess = require("child_process");
 
 const SRC = path.join(__dirname, "src");
 const DIST = path.join(__dirname, "dist");
@@ -104,6 +105,40 @@ function formatTimestamp(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function formatLastChangeAbsolute(isoString) {
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Unknown";
+  }
+  return formatTimestamp(parsed);
+}
+
+function getLastChangeISO(file) {
+  const relative = path.relative(__dirname, file);
+  try {
+    const output = childProcess
+      .execFileSync("git", ["log", "-1", "--format=%cI", relative], {
+        cwd: __dirname,
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+      .toString()
+      .trim();
+
+    if (output) {
+      const parsed = new Date(output);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+  } catch {}
+
+  try {
+    return fs.statSync(file).mtime.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 function escapeHtml(str) {
   return str
     .replace(/&/g, "&amp;")
@@ -177,7 +212,8 @@ const allFiles = listJs(SRC);
 const meta = readMeta();
 const version = resolveVersion(meta.version);
 const versionDisplay = version.startsWith("v") ? version : `v${version}`;
-const buildTimestamp = formatTimestamp(new Date());
+const buildNow = new Date();
+const buildTimestamp = formatTimestamp(buildNow);
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -202,7 +238,7 @@ const entries = ordered.map(file => {
     typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
   const bookmarkName = bookmarkNameClean || name;
   const href = toBookmarkletURL(src, wrap !== false);
-  const mtime = fs.statSync(full).mtime.toISOString();
+  const mtime = getLastChangeISO(full);
 
   return {
     ...rest,
@@ -573,6 +609,11 @@ const cardsHtml = entries
     const bookmarkLine = e.bookmarkName
       ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
       : "";
+    const lastChangeAbsolute = formatLastChangeAbsolute(e.mtime);
+    const lastChangeLabel =
+      lastChangeAbsolute === "Unknown"
+        ? "Last change: Unknown"
+        : `Last change: ${lastChangeAbsolute}`;
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
@@ -584,7 +625,7 @@ const cardsHtml = entries
             ${bookmarkLine}
           </div>
         </div>
-        <span class="badge">Last update: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
+        <span class="badge" data-last-change="${escapeHtml(e.mtime)}" data-last-change-absolute="${escapeHtml(lastChangeAbsolute)}">${escapeHtml(lastChangeLabel)}</span>
       </div>
       ${details}
     </article>`;
@@ -641,6 +682,76 @@ const script = `<script>
     function escapeHtmlLite(value){
       return value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+
+    function formatRelativeLastChangeRuntime(isoString, reference){
+      if(!isoString){return null;}
+      var last=new Date(isoString);
+      if(isNaN(last.getTime())){return null;}
+      var now=reference instanceof Date?reference:new Date(reference||Date.now());
+      if(isNaN(now.getTime())){now=new Date();}
+      var diffMsRaw=now.getTime()-last.getTime();
+      var inFuture=diffMsRaw<0;
+      var diffMs=Math.abs(diffMsRaw);
+      var minuteMs=60*1000;
+      var dayMs=24*minuteMs;
+      var monthMs=30*dayMs;
+      var label='';
+      if(diffMs<dayMs){
+        var minutes=Math.max(1,Math.round(diffMs/minuteMs));
+        label=minutes===1?'1 minute':minutes+' minutes';
+      }else{
+        var rawDays=Math.floor(diffMs/dayMs);
+        var days=rawDays>0?rawDays:1;
+        if(days<60){
+          label=days===1?'1 day':days+' days';
+        }else{
+          var start=inFuture?new Date(now.getTime()):new Date(last.getTime());
+          var end=inFuture?new Date(last.getTime()):new Date(now.getTime());
+          var years=end.getFullYear()-start.getFullYear();
+          var months=end.getMonth()-start.getMonth();
+          if(end.getDate()<start.getDate()){months-=1;}
+          while(months<0){years-=1;months+=12;}
+          if(years<0){years=0;}
+          var totalMonths=years*12+months;
+          if(totalMonths<=0){
+            var approxMonths=Math.max(1,Math.round(diffMs/monthMs));
+            label=approxMonths===1?'1 month':approxMonths+' months';
+          }else if(years===0){
+            label=totalMonths===1?'1 month':totalMonths+' months';
+          }else{
+            var remainingMonths=totalMonths-years*12;
+            if(remainingMonths<=0){
+              label=years===1?'1 year':years+' years';
+            }else{
+              var yearLabel=years===1?'1 year':years+' years';
+              var monthLabel=remainingMonths===1?'1 month':remainingMonths+' months';
+              label=yearLabel+' / '+monthLabel;
+            }
+          }
+        }
+      }
+      if(!label){label='1 minute';}
+      return inFuture?'in '+label:label+' ago';
+    }
+
+    function updateLastChangeBadges(){
+      var now=new Date();
+      document.querySelectorAll('.badge[data-last-change]').forEach(function(el){
+        var iso=el.getAttribute('data-last-change');
+        var absolute=el.getAttribute('data-last-change-absolute');
+        var relative=formatRelativeLastChangeRuntime(iso,now);
+        if(relative){
+          el.textContent='Last change: '+relative;
+        }else if(absolute){
+          el.textContent='Last change: '+absolute;
+        }else{
+          el.textContent='Last change: Unknown';
+        }
+      });
+    }
+
+    updateLastChangeBadges();
+    setInterval(updateLastChangeBadges,60*1000);
 
     document.querySelectorAll('a.btn').forEach(anchor=>{
       anchor.addEventListener('dragstart',ev=>{
