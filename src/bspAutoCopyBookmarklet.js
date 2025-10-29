@@ -186,43 +186,8 @@ javascript:(() => {
     return value != null;
   };
 
-  const showToast = (message, { error = false } = {}) => {
-    const existing = document.querySelector("#bsp-auto-toast");
-    if (existing) {
-      existing.remove();
-    }
-    const toast = document.createElement("div");
-    toast.id = "bsp-auto-toast";
-    toast.style.position = "fixed";
-    toast.style.top = "16px";
-    toast.style.left = "50%";
-    toast.style.transform = "translateX(-50%)";
-    toast.style.padding = "10px 16px";
-    toast.style.background = error ? "#e67e22" : "#2ecc71";
-    toast.style.color = "#fff";
-    toast.style.font = "14px/1.4 sans-serif";
-    toast.style.borderRadius = "4px";
-    toast.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-    toast.style.zIndex = "2147483647";
-    toast.style.display = "flex";
-    toast.style.alignItems = "center";
-    toast.style.gap = "12px";
-
-    const label = document.createElement("span");
-    label.textContent = message;
-    toast.appendChild(label);
-
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.transition = "opacity 200ms ease";
-      toast.style.opacity = "0";
-      setTimeout(() => toast.remove(), 220);
-    }, 4000);
-  };
-
   if (!hasNonNullValue(result)) {
     console.warn("No BSP data found", result);
-    showToast("No data found", { error: true });
     return;
   }
 
@@ -230,7 +195,6 @@ javascript:(() => {
     localStorage.setItem("bspAutoBookingData", JSON.stringify(result));
     console.info("bspAutoBookingData updated", result);
     logStructuredResult(result);
-    showToast("BSP data copied");
     const openPasteBookmarkletPage = () =>
       window.open(
         "https://www.bsp-auto.com/auto_2175bsp/tarifs.asp",
@@ -240,6 +204,5 @@ javascript:(() => {
     setTimeout(openPasteBookmarkletPage, 1000);
   } catch (error) {
     console.error("Failed to store bspAutoBookingData", error, result);
-    showToast("Failed to copy BSP data", { error: true });
   }
 })();

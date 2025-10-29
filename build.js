@@ -233,9 +233,6 @@ const css = `:root {
   --radius: 18px;
   --tooltip-bg: rgba(15, 23, 42, 0.92);
   --tooltip-fg: #f8fafc;
-  --toast-bg: rgba(15, 23, 42, 0.95);
-  --toast-fg: #f8fafc;
-  --toast-border: rgba(148, 163, 184, 0.35);
 }
 
 :root[data-theme="dark"],
@@ -254,9 +251,6 @@ body[data-theme="dark"] {
   --shadow-hover-button: 0 12px 32px rgba(125, 211, 252, 0.42);
   --tooltip-bg: rgba(226, 232, 240, 0.92);
   --tooltip-fg: #0f172a;
-  --toast-bg: rgba(15, 23, 42, 0.85);
-  --toast-fg: #e2e8f0;
-  --toast-border: rgba(148, 163, 184, 0.3);
 }
 
 * {
@@ -293,74 +287,6 @@ h6 {
   flex-direction: column;
   min-height: 100%;
   flex: 1 0 auto;
-}
-
-#toastHost {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 900;
-  pointer-events: none;
-}
-
-.toast {
-  min-width: 240px;
-  max-width: min(320px, calc(100vw - 32px));
-  background: var(--toast-bg);
-  color: var(--toast-fg);
-  border: 1px solid var(--toast-border);
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: var(--shadow);
-  font-weight: 560;
-  letter-spacing: 0.01em;
-  pointer-events: auto;
-  opacity: 0;
-  transform: translateY(-10px) scale(0.98);
-  animation: toast-in 200ms ease forwards;
-}
-
-.toast-leave {
-  animation: toast-out 180ms ease forwards;
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes toast-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.96);
-  }
-}
-
-@media (max-width: 600px) {
-  #toastHost {
-    top: 16px;
-    right: 16px;
-    left: 16px;
-    align-items: flex-end;
-  }
-
-  #toastHost .toast {
-    width: 100%;
-    max-width: 100%;
-  }
 }
 
 .topbar {
@@ -590,33 +516,6 @@ span.badge {
   background: transparent;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-}
-
-.actions button {
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--fg);
-  padding: 8px 12px;
-  font-weight: 550;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.actions button:hover,
-.actions button:focus-visible {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-  outline: none;
-}
-
 details {
   border-top: 1px dashed var(--border);
   margin-top: 6px;
@@ -687,9 +586,6 @@ const cardsHtml = entries
         </div>
         <span class="badge">Last update: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
       </div>
-      <div class="actions">
-        <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
-      </div>
       ${details}
     </article>`;
   })
@@ -702,12 +598,7 @@ const script = `<script>
     const body=document.body;
     const themeBtn=document.getElementById('themeToggle');
     if(!themeBtn){console.warn('theme toggle button not found at init');}
-    const liveRegion=document.getElementById('liveRegion');
     const prefersDark=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):{matches:false};
-    const PULSE_TIMEOUT=1200;
-    const tipTimers=new WeakMap();
-    let liveMessageTimer=null;
-    let liveResetTimer=null;
 
     function safeGet(key){
       try{return localStorage.getItem(key);}catch(e){return null;}
@@ -766,63 +657,6 @@ const script = `<script>
         }
       });
     });
-
-    function fallbackCopy(text){
-      const ta=document.createElement('textarea');
-      ta.value=text;
-      ta.setAttribute('readonly','');
-      ta.style.position='absolute';
-      ta.style.left='-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      let ok=false;
-      try{ok=document.execCommand('copy');}catch(e){}
-      document.body.removeChild(ta);
-      return ok;
-    }
-
-    function announceLive(message){
-      if(!liveRegion) return;
-      liveRegion.textContent='';
-      if(liveMessageTimer){clearTimeout(liveMessageTimer);}
-      if(liveResetTimer){clearTimeout(liveResetTimer);}
-      liveMessageTimer=setTimeout(()=>{
-        liveRegion.textContent=message;
-        liveMessageTimer=null;
-      },50);
-      liveResetTimer=setTimeout(()=>{
-        liveRegion.textContent='';
-        liveResetTimer=null;
-      },PULSE_TIMEOUT);
-    }
-
-    function pulse(el,label){
-      if(!el.hasAttribute('data-tip-default')){
-        el.setAttribute('data-tip-default',el.getAttribute('data-tip')||'');
-      }
-      el.setAttribute('data-tip',label);
-      if(tipTimers.has(el)){
-        clearTimeout(tipTimers.get(el));
-      }
-      announceLive(label);
-      const timeout=setTimeout(()=>{
-        el.setAttribute('data-tip',el.getAttribute('data-tip-default')||'');
-        tipTimers.delete(el);
-      },PULSE_TIMEOUT);
-      tipTimers.set(el,timeout);
-    }
-
-    document.querySelectorAll('button.copy').forEach(btn=>{
-      btn.addEventListener('click',async()=>{
-        const url=decodeURIComponent(btn.getAttribute('data-code'));
-        try{
-          await navigator.clipboard.writeText(url);
-          pulse(btn,'Copied!');
-        }catch(err){
-          fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
-        }
-      });
-    });
   }
 
   if(document.readyState==='loading'){
@@ -857,7 +691,6 @@ const html = `<!doctype html>
     <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
   </header>
   <div class="page">
-    <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <main>
       <h1>BSP Auto – Tools</h1>
       <p class="subtitle">- drag buttons to your bookmarks bar -</p>
@@ -866,7 +699,6 @@ const html = `<!doctype html>
       </section>
     </main>
     <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
-    <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
 </body>
