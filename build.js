@@ -518,46 +518,20 @@ a.btn {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
 }
 
-a.btn .btn-label {
-  font-weight: 650;
-}
-
-a.btn .drag-hint {
+span.drag-hint {
   font-size: 11px;
   font-variant: all-small-caps;
   letter-spacing: 0.16em;
-  color: rgba(248, 250, 252, 0.86);
-  opacity: 0.92;
-  border-bottom: 1px dashed rgba(248, 250, 252, 0.4);
-  padding-bottom: 1px;
+  color: var(--muted);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  animation: drag-hint-wiggle 2.4s ease-in-out infinite;
 }
 
-@keyframes drag-hint-wiggle {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(2px);
-  }
-  40% {
-    transform: translateX(-3px);
-  }
-  60% {
-    transform: translateX(1.5px);
-  }
-  80% {
-    transform: translateX(-1px);
-  }
-}
-
-html[data-theme="dark"] a.btn .drag-hint {
-  color: rgba(11, 18, 32, 0.86);
-  border-bottom-color: rgba(11, 18, 32, 0.35);
+span.drag-divider {
+  align-self: stretch;
+  border-left: 1px dashed var(--border);
+  width: 0;
 }
 
 a.btn:hover,
@@ -703,7 +677,9 @@ const cardsHtml = entries
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
-          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks"><span class="btn-label">${escapeHtml(e.bookmarkName || e.name)}</span><span class="drag-hint">⇢ Drag me</span></a>
+          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${escapeHtml(e.bookmarkName || e.name)}</a>
+          <span class="drag-hint">⇢ Drag me</span>
+          <span class="drag-divider" aria-hidden="true"></span>
           <div class="title-group">
             <span class="name">${escapeHtml(e.name)}</span>
             ${bookmarkLine}
