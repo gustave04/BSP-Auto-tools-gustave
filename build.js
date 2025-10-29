@@ -652,7 +652,7 @@ const script = `<script>
         ev.dataTransfer.setData('text/uri-list',url);
         ev.dataTransfer.setData('text/plain',url);
         if(title){
-          try{ev.dataTransfer.setData('text/x-moz-url',url+'\n'+title);}catch(e){}
+          try{ev.dataTransfer.setData('text/x-moz-url',url+'\\n'+title);}catch(e){}
           try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(title)+'</a>');}catch(e){}
         }
       });
