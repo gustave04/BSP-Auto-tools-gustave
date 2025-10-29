@@ -461,11 +461,10 @@ const cardsHtml = entries
     const bookmarkLine = e.bookmarkName
       ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
       : "";
-    const dragLabel = "🔖 Drag";
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
-          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${dragLabel}</a>
+          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${escapeHtml(e.bookmarkName || e.name)}</a>
           <div class="title-group">
             <span class="name">${escapeHtml(e.name)}</span>
             ${bookmarkLine}
