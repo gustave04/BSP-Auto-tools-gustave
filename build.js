@@ -65,22 +65,43 @@ function stripJsonComments(input) {
   return result;
 }
 
-function readMeta() {
-  const metaFile = path.join(SRC, "_meta.json");
-  if (!fs.existsSync(metaFile)) return { order: [], items: {} };
+function readJsonFile(file) {
+  if (!fs.existsSync(file)) return null;
   try {
-    const raw = fs.readFileSync(metaFile, "utf8");
+    const raw = fs.readFileSync(file, "utf8");
     const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
     const cleaned = stripJsonComments(normalized).trim();
-    if (!cleaned) return { order: [], items: {} };
-    const meta = JSON.parse(cleaned);
-    return {
-      order: Array.isArray(meta.order) ? meta.order : [],
-      items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
-    };
+    if (!cleaned) return null;
+    return JSON.parse(cleaned);
   } catch {
-    return { order: [], items: {} };
+    return null;
   }
+}
+
+function readMeta() {
+  const metaFile = path.join(SRC, "_meta.json");
+  const meta = readJsonFile(metaFile) || {};
+  return {
+    version: typeof meta.version === "string" ? meta.version.trim() : "",
+    order: Array.isArray(meta.order) ? meta.order : [],
+    items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
+  };
+}
+
+function resolveVersion(metaVersion = "") {
+  const pkg = readJsonFile(path.join(__dirname, "package.json"));
+  if (pkg && typeof pkg.version === "string" && pkg.version.trim()) {
+    return pkg.version.trim();
+  }
+  if (metaVersion && metaVersion.trim()) {
+    return metaVersion.trim();
+  }
+  return "0.0.0";
+}
+
+function formatTimestamp(date) {
+  const pad = value => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function escapeHtml(str) {
@@ -92,15 +113,71 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function normalizeBookmarkletSource(source, wrap = true) {
+  if (typeof source !== "string") {
+    const shouldWrap = wrap !== false;
+    return {
+      code: "",
+      wrap: shouldWrap,
+      wrapperType: shouldWrap ? "plain" : "none",
+    };
+  }
+
+  let cleaned = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
+  const jsPrefixMatch = cleaned.match(/^\s*javascript:\s*/i);
+  if (jsPrefixMatch) {
+    cleaned = cleaned.slice(jsPrefixMatch[0].length);
+  }
+
+  cleaned = cleaned.trim();
+
+  const shouldWrap = wrap !== false;
+  let wrapperType = shouldWrap ? "plain" : "none";
+
+  if (shouldWrap) {
+    const iifePatterns = [
+      { pattern: /^\(function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "async" },
+      { pattern: /^\(\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "async" },
+    ];
+
+    for (const { pattern, type } of iifePatterns) {
+      const match = cleaned.match(pattern);
+      if (match) {
+        cleaned = match[1];
+        wrapperType = type;
+        break;
+      }
+    }
+  }
+
+  return { code: cleaned, wrap: shouldWrap, wrapperType };
+}
+
 function toBookmarkletURL(source, wrap = true) {
-  const code = wrap ? `(function(){${source}})();` : source;
-  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
+  const { code, wrap: shouldWrap, wrapperType } = normalizeBookmarkletSource(source, wrap);
+  let finalCode;
+  if (shouldWrap) {
+    if (wrapperType === "async") {
+      finalCode = `(async function(){${code}})();`;
+    } else {
+      finalCode = `(function(){${code}})();`;
+    }
+  } else {
+    finalCode = code;
+  }
+  return "javascript:" + encodeURI(finalCode).replace(/#/g, "%23");
 }
 
 // Collect ---------------------------------------------------------------
 ensureDir(DIST);
 const allFiles = listJs(SRC);
 const meta = readMeta();
+const version = resolveVersion(meta.version);
+const versionDisplay = version.startsWith("v") ? version : `v${version}`;
+const buildTimestamp = formatTimestamp(new Date());
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -141,19 +218,24 @@ const entries = ordered.map(file => {
 // HTML & CSS ------------------------------------------------------------
 const css = `:root {
   color-scheme: light;
-  --maxw: 900px;
+  --maxw: 1000px;
   --bg: #ffffff;
   --fg: #0f172a;
   --muted: #64748b;
   --accent: #2563eb;
+  --accent-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   --accent-fg: #ffffff;
-  --card: #f8fafc;
-  --border: #e2e8f0;
-  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-hover: 0 12px 32px rgba(37, 99, 235, 0.18);
-  --radius: 14px;
+  --card: rgba(248, 250, 252, 0.65);
+  --border: rgba(148, 163, 184, 0.35);
+  --shadow: 0 14px 32px rgba(37, 99, 235, 0.18);
+  --shadow-hover: 0 18px 50px rgba(59, 130, 246, 0.28);
+  --shadow-hover-button: 0 12px 32px rgba(59, 130, 246, 0.28);
+  --radius: 18px;
   --tooltip-bg: rgba(15, 23, 42, 0.92);
   --tooltip-fg: #f8fafc;
+  --toast-bg: rgba(15, 23, 42, 0.95);
+  --toast-fg: #f8fafc;
+  --toast-border: rgba(148, 163, 184, 0.35);
 }
 
 :root[data-theme="dark"],
@@ -163,13 +245,18 @@ body[data-theme="dark"] {
   --fg: #e2e8f0;
   --muted: #94a3b8;
   --accent: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   --accent-fg: #0b1220;
-  --card: rgba(15, 23, 42, 0.75);
-  --border: rgba(148, 163, 184, 0.26);
-  --shadow: 0 12px 32px rgba(8, 15, 35, 0.55);
-  --shadow-hover: 0 16px 40px rgba(59, 130, 246, 0.28);
+  --card: rgba(15, 23, 42, 0.55);
+  --border: rgba(96, 165, 250, 0.32);
+  --shadow: 0 14px 32px rgba(37, 99, 235, 0.32);
+  --shadow-hover: 0 22px 60px rgba(125, 211, 252, 0.42);
+  --shadow-hover-button: 0 12px 32px rgba(125, 211, 252, 0.42);
   --tooltip-bg: rgba(226, 232, 240, 0.92);
   --tooltip-fg: #0f172a;
+  --toast-bg: rgba(15, 23, 42, 0.85);
+  --toast-fg: #e2e8f0;
+  --toast-border: rgba(148, 163, 184, 0.3);
 }
 
 * {
@@ -178,7 +265,7 @@ body[data-theme="dark"] {
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
+  font-family: 'Lexend', 'Inter', 'Inter Tight', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
   background: var(--bg);
   color: var(--fg);
   display: flex;
@@ -188,11 +275,92 @@ body {
   padding: 24px 0 32px;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Lexend', 'Inter', 'Inter Tight', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
+}
+
 .page {
   width: 100%;
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1 0 auto;
+}
+
+#toastHost {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - 32px));
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  border: 1px solid var(--toast-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  animation: toast-in 200ms ease forwards;
+}
+
+.toast-leave {
+  animation: toast-out 180ms ease forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+}
+
+@media (max-width: 600px) {
+  #toastHost {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    align-items: flex-end;
+  }
+
+  #toastHost .toast {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .topbar {
@@ -216,7 +384,6 @@ body {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
-  box-shadow: var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -246,6 +413,7 @@ body {
 
 main {
   background: transparent;
+  flex: 1 0 auto;
 }
 
 h1 {
@@ -253,11 +421,19 @@ h1 {
   margin: 0 0 6px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  background-image: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 p.subtitle {
   text-align: center;
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  font-size: 13px;
   margin: 0;
 }
 
@@ -265,18 +441,35 @@ section.grid {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 32px;
+  margin-top: 80px;
+}
+
+.site-footer {
+  margin: 0;
+  padding: 18px 0 12px;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
+}
+
+.site-footer strong {
+  font-weight: 600;
+  color: var(--fg);
 }
 
 article.card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 14px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   box-shadow: var(--shadow);
+  backdrop-filter: saturate(150%) blur(18px);
+  -webkit-backdrop-filter: saturate(150%) blur(18px);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -309,24 +502,44 @@ div.title-group {
 }
 
 a.btn {
-  background: var(--accent);
+  background-image: var(--accent-gradient);
   color: var(--accent-fg);
   text-decoration: none;
-  padding: 10px 16px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
   font-weight: 650;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-wrap: wrap;
+  row-gap: 2px;
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
+}
+
+span.drag-hint {
+  font-size: 11px;
+  font-variant: all-small-caps;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+span.drag-divider {
+  align-self: stretch;
+  border-left: 1px solid var(--border);
+  width: 0;
 }
 
 a.btn:hover,
 a.btn:focus-visible {
-  box-shadow: var(--shadow-hover);
+  box-shadow: var(--shadow-hover-button);
   transform: translateY(-1px);
   outline: none;
+  background-position: 100% 50%;
 }
 
 span.name {
@@ -465,6 +678,8 @@ const cardsHtml = entries
       <div class="row1">
         <div class="row1-left">
           <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${escapeHtml(e.bookmarkName || e.name)}</a>
+          <span class="drag-hint">⇢ Drag me</span>
+          <span class="drag-divider" aria-hidden="true"></span>
           <div class="title-group">
             <span class="name">${escapeHtml(e.name)}</span>
             ${bookmarkLine}
@@ -623,7 +838,7 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
   <script>(function(){
     try{
       var stored=localStorage.getItem('theme');
@@ -644,12 +859,14 @@ const html = `<!doctype html>
   <div class="page">
     <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <main>
-      <h1>BSP Auto – Bookmarklets</h1>
-      <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
+      <h1>BSP Auto – Tools</h1>
+      <p class="subtitle">- drag buttons to your bookmarks bar -</p>
       <section class="grid">
         ${cardsHtml}
       </section>
     </main>
+    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
+    <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
 </body>
