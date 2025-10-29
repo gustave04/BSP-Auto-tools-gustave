@@ -529,12 +529,23 @@ const script = `<script>(function(){
     });
   }
 
+  function escapeHtmlLite(value){
+    return value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
   document.querySelectorAll('a.btn').forEach(anchor=>{
     anchor.addEventListener('dragstart',ev=>{
       const url=anchor.getAttribute('href');
+      const card=anchor.closest('article');
+      const rawTitle=card?card.getAttribute('data-bookmark')||'':'';
+      const title=(rawTitle||anchor.textContent||'').replace(/[\\r\\n]+/g,' ').trim();
       ev.dataTransfer.effectAllowed='copy';
       ev.dataTransfer.setData('text/uri-list',url);
       ev.dataTransfer.setData('text/plain',url);
+      if(title){
+        try{ev.dataTransfer.setData('text/x-moz-url',url+'\n'+title);}catch(e){}
+        try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(title)+'</a>');}catch(e){}
+      }
     });
   });
 
