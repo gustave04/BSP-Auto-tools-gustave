@@ -65,22 +65,43 @@ function stripJsonComments(input) {
   return result;
 }
 
-function readMeta() {
-  const metaFile = path.join(SRC, "_meta.json");
-  if (!fs.existsSync(metaFile)) return { order: [], items: {} };
+function readJsonFile(file) {
+  if (!fs.existsSync(file)) return null;
   try {
-    const raw = fs.readFileSync(metaFile, "utf8");
+    const raw = fs.readFileSync(file, "utf8");
     const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
     const cleaned = stripJsonComments(normalized).trim();
-    if (!cleaned) return { order: [], items: {} };
-    const meta = JSON.parse(cleaned);
-    return {
-      order: Array.isArray(meta.order) ? meta.order : [],
-      items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
-    };
+    if (!cleaned) return null;
+    return JSON.parse(cleaned);
   } catch {
-    return { order: [], items: {} };
+    return null;
   }
+}
+
+function readMeta() {
+  const metaFile = path.join(SRC, "_meta.json");
+  const meta = readJsonFile(metaFile) || {};
+  return {
+    version: typeof meta.version === "string" ? meta.version.trim() : "",
+    order: Array.isArray(meta.order) ? meta.order : [],
+    items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
+  };
+}
+
+function resolveVersion(metaVersion = "") {
+  const pkg = readJsonFile(path.join(__dirname, "package.json"));
+  if (pkg && typeof pkg.version === "string" && pkg.version.trim()) {
+    return pkg.version.trim();
+  }
+  if (metaVersion && metaVersion.trim()) {
+    return metaVersion.trim();
+  }
+  return "0.0.0";
+}
+
+function formatTimestamp(date) {
+  const pad = value => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function escapeHtml(str) {
@@ -101,6 +122,9 @@ function toBookmarkletURL(source, wrap = true) {
 ensureDir(DIST);
 const allFiles = listJs(SRC);
 const meta = readMeta();
+const version = resolveVersion(meta.version);
+const versionDisplay = version.startsWith("v") ? version : `v${version}`;
+const buildTimestamp = formatTimestamp(new Date());
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -146,14 +170,18 @@ const css = `:root {
   --fg: #0f172a;
   --muted: #64748b;
   --accent: #2563eb;
+  --accent-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   --accent-fg: #ffffff;
-  --card: #f8fafc;
-  --border: #e2e8f0;
-  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-hover: 0 12px 32px rgba(37, 99, 235, 0.18);
+  --card: rgba(248, 250, 252, 0.65);
+  --border: rgba(148, 163, 184, 0.35);
+  --shadow: 0 12px 36px rgba(37, 99, 235, 0.18);
+  --shadow-hover: 0 18px 50px rgba(59, 130, 246, 0.28);
   --radius: 14px;
   --tooltip-bg: rgba(15, 23, 42, 0.92);
   --tooltip-fg: #f8fafc;
+  --toast-bg: rgba(15, 23, 42, 0.95);
+  --toast-fg: #f8fafc;
+  --toast-border: rgba(148, 163, 184, 0.35);
 }
 
 :root[data-theme="dark"],
@@ -163,13 +191,17 @@ body[data-theme="dark"] {
   --fg: #e2e8f0;
   --muted: #94a3b8;
   --accent: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   --accent-fg: #0b1220;
-  --card: rgba(15, 23, 42, 0.75);
-  --border: rgba(148, 163, 184, 0.26);
-  --shadow: 0 12px 32px rgba(8, 15, 35, 0.55);
-  --shadow-hover: 0 16px 40px rgba(59, 130, 246, 0.28);
+  --card: rgba(15, 23, 42, 0.55);
+  --border: rgba(96, 165, 250, 0.32);
+  --shadow: 0 14px 42px rgba(37, 99, 235, 0.32);
+  --shadow-hover: 0 22px 60px rgba(125, 211, 252, 0.42);
   --tooltip-bg: rgba(226, 232, 240, 0.92);
   --tooltip-fg: #0f172a;
+  --toast-bg: rgba(15, 23, 42, 0.85);
+  --toast-fg: #e2e8f0;
+  --toast-border: rgba(148, 163, 184, 0.3);
 }
 
 * {
@@ -178,7 +210,7 @@ body[data-theme="dark"] {
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
+  font-family: 'Lexend', 'Inter', 'Inter Tight', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
   background: var(--bg);
   color: var(--fg);
   display: flex;
@@ -188,11 +220,88 @@ body {
   padding: 24px 0 32px;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Lexend', 'Inter', 'Inter Tight', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
+}
+
 .page {
   width: 100%;
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 8px;
+}
+
+#toastHost {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - 32px));
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  border: 1px solid var(--toast-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  animation: toast-in 200ms ease forwards;
+}
+
+.toast-leave {
+  animation: toast-out 180ms ease forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+}
+
+@media (max-width: 600px) {
+  #toastHost {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    align-items: flex-end;
+  }
+
+  #toastHost .toast {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .topbar {
@@ -253,11 +362,19 @@ h1 {
   margin: 0 0 6px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  background-image: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 p.subtitle {
   text-align: center;
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  font-size: 13px;
   margin: 0;
 }
 
@@ -266,6 +383,19 @@ section.grid {
   flex-direction: column;
   gap: 16px;
   margin-top: 32px;
+}
+
+.site-footer {
+  margin: 40px 0 10px;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.site-footer strong {
+  font-weight: 600;
+  color: var(--fg);
 }
 
 article.card {
@@ -277,6 +407,8 @@ article.card {
   flex-direction: column;
   gap: 12px;
   box-shadow: var(--shadow);
+  backdrop-filter: saturate(150%) blur(18px);
+  -webkit-backdrop-filter: saturate(150%) blur(18px);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -309,7 +441,7 @@ div.title-group {
 }
 
 a.btn {
-  background: var(--accent);
+  background-image: var(--accent-gradient);
   color: var(--accent-fg);
   text-decoration: none;
   padding: 10px 16px;
@@ -319,7 +451,9 @@ a.btn {
   align-items: center;
   gap: 8px;
   box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
 }
 
 a.btn:hover,
@@ -327,6 +461,7 @@ a.btn:focus-visible {
   box-shadow: var(--shadow-hover);
   transform: translateY(-1px);
   outline: none;
+  background-position: 100% 50%;
 }
 
 span.name {
@@ -497,6 +632,22 @@ window.addEventListener('DOMContentLoaded',function(){
     function safeGet(key){
       try{return localStorage.getItem(key);}catch(e){return null;}
     }
+const script = `<script>(function(){
+  const root=document.documentElement;
+  const body=document.body;
+  const themeBtn=document.getElementById('themeToggle');
+  const liveRegion=document.getElementById('liveRegion');
+  const toastHost=document.getElementById('toastHost');
+  const prefersDark=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):{matches:false};
+  const PULSE_TIMEOUT=1200;
+  const TOAST_DURATION=2800;
+  const tipTimers=new WeakMap();
+  let liveMessageTimer=null;
+  let liveResetTimer=null;
+
+  function safeGet(key){
+    try{return localStorage.getItem(key);}catch(e){return null;}
+  }
 
     function safeSet(key,value){
       try{localStorage.setItem(key,value);}catch(e){}
@@ -588,6 +739,49 @@ window.addEventListener('DOMContentLoaded',function(){
       el.setAttribute('data-tip',label);
       if(tipTimers.has(el)){
         clearTimeout(tipTimers.get(el));
+  function showToast(message,options){
+    if(!toastHost) return;
+    const opts=options||{};
+    const duration=Math.max(1200, typeof opts.duration==='number'?opts.duration:TOAST_DURATION);
+    const toast=document.createElement('div');
+    toast.className='toast';
+    toast.setAttribute('role','status');
+    toast.setAttribute('aria-live','polite');
+    toast.textContent=message;
+    toastHost.appendChild(toast);
+
+    const remove=()=>{
+      if(!toast.classList.contains('toast-leave')){
+        toast.classList.add('toast-leave');
+      }
+    };
+
+    const hideTimer=setTimeout(remove,duration);
+
+    toast.addEventListener('animationend',event=>{
+      if(event.animationName==='toast-out'){
+        clearTimeout(hideTimer);
+        toast.remove();
+      }
+    });
+
+    return remove;
+  }
+
+  document.querySelectorAll('button.copy').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      const url=decodeURIComponent(btn.getAttribute('data-code'));
+      try{
+        await navigator.clipboard.writeText(url);
+        pulse(btn,'Copied!');
+        showToast('Copied to clipboard');
+      }catch(err){
+        if(fallbackCopy(url)){
+          pulse(btn,'Copied!');
+          showToast('Copied to clipboard');
+        }else{
+          pulse(btn,'Copy failed');
+        }
       }
       announceLive(label);
       const timeout=setTimeout(()=>{
@@ -617,7 +811,7 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
   <script>(function(){
     try{
       var stored=localStorage.getItem('theme');
@@ -644,6 +838,8 @@ const html = `<!doctype html>
         ${cardsHtml}
       </section>
     </main>
+    <footer class="site-footer"><strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
+    <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
 </body>
