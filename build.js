@@ -198,14 +198,14 @@ body {
 .topbar {
   display: flex;
   justify-content: flex-start;
-  padding: 0 8px;
-  margin-bottom: 16px;
+  padding: 0 30px;
+  margin-bottom: 12px;
 }
 
 
 .theme-toggle {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: none;
   background: var(--card);
@@ -213,7 +213,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1;
   cursor: pointer;
   box-shadow: var(--shadow);
