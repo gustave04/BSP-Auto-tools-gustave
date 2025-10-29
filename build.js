@@ -456,6 +456,22 @@ a.btn {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
 }
 
+span.drag-hint {
+  font-size: 11px;
+  font-variant: all-small-caps;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+span.drag-divider {
+  align-self: stretch;
+  border-left: 1px dashed var(--border);
+  width: 0;
+}
+
 a.btn:hover,
 a.btn:focus-visible {
   box-shadow: var(--shadow-hover);
@@ -600,6 +616,8 @@ const cardsHtml = entries
       <div class="row1">
         <div class="row1-left">
           <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${escapeHtml(e.bookmarkName || e.name)}</a>
+          <span class="drag-hint">⇢ Drag me</span>
+          <span class="drag-divider" aria-hidden="true"></span>
           <div class="title-group">
             <span class="name">${escapeHtml(e.name)}</span>
             ${bookmarkLine}
