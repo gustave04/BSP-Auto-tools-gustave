@@ -113,9 +113,46 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function normalizeBookmarkletSource(source, wrap = true) {
+  if (typeof source !== "string") {
+    return { code: "", wrap: wrap !== false };
+  }
+
+  let cleaned = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
+  const jsPrefixMatch = cleaned.match(/^\s*javascript:\s*/i);
+  if (jsPrefixMatch) {
+    cleaned = cleaned.slice(jsPrefixMatch[0].length);
+  }
+
+  cleaned = cleaned.trim();
+
+  const shouldWrap = wrap !== false;
+
+  if (shouldWrap) {
+    const iifePatterns = [
+      /^\(function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i,
+      /^\(\s*async\s*function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i,
+      /^\(\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i,
+      /^\(\s*async\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i,
+    ];
+
+    for (const pattern of iifePatterns) {
+      const match = cleaned.match(pattern);
+      if (match) {
+        cleaned = match[1];
+        break;
+      }
+    }
+  }
+
+  return { code: cleaned, wrap: shouldWrap };
+}
+
 function toBookmarkletURL(source, wrap = true) {
-  const code = wrap ? `(function(){${source}})();` : source;
-  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
+  const { code, wrap: shouldWrap } = normalizeBookmarkletSource(source, wrap);
+  const finalCode = shouldWrap ? `(function(){${code}})();` : code;
+  return "javascript:" + encodeURI(finalCode).replace(/#/g, "%23");
 }
 
 // Collect ---------------------------------------------------------------
