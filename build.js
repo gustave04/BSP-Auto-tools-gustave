@@ -218,7 +218,7 @@ const entries = ordered.map(file => {
 // HTML & CSS ------------------------------------------------------------
 const css = `:root {
   color-scheme: light;
-  --maxw: 900px;
+  --maxw: 100px;
   --bg: #ffffff;
   --fg: #0f172a;
   --muted: #64748b;
@@ -227,9 +227,10 @@ const css = `:root {
   --accent-fg: #ffffff;
   --card: rgba(248, 250, 252, 0.65);
   --border: rgba(148, 163, 184, 0.35);
-  --shadow: 0 12px 36px rgba(37, 99, 235, 0.18);
+  --shadow: 0 14px 32px rgba(37, 99, 235, 0.18);
   --shadow-hover: 0 18px 50px rgba(59, 130, 246, 0.28);
-  --radius: 14px;
+  --shadow-hover-button: 0 12px 32px rgba(59, 130, 246, 0.28);
+  --radius: 18px;
   --tooltip-bg: rgba(15, 23, 42, 0.92);
   --tooltip-fg: #f8fafc;
   --toast-bg: rgba(15, 23, 42, 0.95);
@@ -248,8 +249,9 @@ body[data-theme="dark"] {
   --accent-fg: #0b1220;
   --card: rgba(15, 23, 42, 0.55);
   --border: rgba(96, 165, 250, 0.32);
-  --shadow: 0 14px 42px rgba(37, 99, 235, 0.32);
+  --shadow: 0 14px 32px rgba(37, 99, 235, 0.32);
   --shadow-hover: 0 22px 60px rgba(125, 211, 252, 0.42);
+  --shadow-hover-button: 0 12px 32px rgba(125, 211, 252, 0.42);
   --tooltip-bg: rgba(226, 232, 240, 0.92);
   --tooltip-fg: #0f172a;
   --toast-bg: rgba(15, 23, 42, 0.85);
@@ -382,7 +384,6 @@ h6 {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
-  box-shadow: var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -440,7 +441,7 @@ section.grid {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 32px;
+  margin-top: 80px;
 }
 
 .site-footer {
@@ -462,10 +463,10 @@ article.card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 14px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   box-shadow: var(--shadow);
   backdrop-filter: saturate(150%) blur(18px);
   -webkit-backdrop-filter: saturate(150%) blur(18px);
@@ -504,15 +505,14 @@ a.btn {
   background-image: var(--accent-gradient);
   color: var(--accent-fg);
   text-decoration: none;
-  padding: 10px 16px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
   font-weight: 650;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   row-gap: 2px;
-  box-shadow: var(--shadow);
   background-size: 200% 200%;
   background-position: 0% 50%;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
@@ -530,13 +530,13 @@ span.drag-hint {
 
 span.drag-divider {
   align-self: stretch;
-  border-left: 1px dashed var(--border);
+  border-left: 1px solid var(--border);
   width: 0;
 }
 
 a.btn:hover,
 a.btn:focus-visible {
-  box-shadow: var(--shadow-hover);
+  box-shadow: var(--shadow-hover-button);
   transform: translateY(-1px);
   outline: none;
   background-position: 100% 50%;
@@ -885,8 +885,8 @@ const html = `<!doctype html>
   <div class="page">
     <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <main>
-      <h1>BSP Auto – Bookmarklets</h1>
-      <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
+      <h1>BSP Auto – Tools</h1>
+      <p class="subtitle">- drag buttons to your bookmarks bar -</p>
       <section class="grid">
         ${cardsHtml}
       </section>
