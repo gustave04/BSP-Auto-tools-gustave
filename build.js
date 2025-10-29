@@ -115,7 +115,12 @@ function escapeHtml(str) {
 
 function normalizeBookmarkletSource(source, wrap = true) {
   if (typeof source !== "string") {
-    return { code: "", wrap: wrap !== false };
+    const shouldWrap = wrap !== false;
+    return {
+      code: "",
+      wrap: shouldWrap,
+      wrapperType: shouldWrap ? "plain" : "none",
+    };
   }
 
   let cleaned = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
@@ -128,30 +133,41 @@ function normalizeBookmarkletSource(source, wrap = true) {
   cleaned = cleaned.trim();
 
   const shouldWrap = wrap !== false;
+  let wrapperType = shouldWrap ? "plain" : "none";
 
   if (shouldWrap) {
     const iifePatterns = [
-      /^\(function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i,
-      /^\(\s*async\s*function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i,
-      /^\(\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i,
-      /^\(\s*async\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i,
+      { pattern: /^\(function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "async" },
+      { pattern: /^\(\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "async" },
     ];
 
-    for (const pattern of iifePatterns) {
+    for (const { pattern, type } of iifePatterns) {
       const match = cleaned.match(pattern);
       if (match) {
         cleaned = match[1];
+        wrapperType = type;
         break;
       }
     }
   }
 
-  return { code: cleaned, wrap: shouldWrap };
+  return { code: cleaned, wrap: shouldWrap, wrapperType };
 }
 
 function toBookmarkletURL(source, wrap = true) {
-  const { code, wrap: shouldWrap } = normalizeBookmarkletSource(source, wrap);
-  const finalCode = shouldWrap ? `(function(){${code}})();` : code;
+  const { code, wrap: shouldWrap, wrapperType } = normalizeBookmarkletSource(source, wrap);
+  let finalCode;
+  if (shouldWrap) {
+    if (wrapperType === "async") {
+      finalCode = `(async function(){${code}})();`;
+    } else {
+      finalCode = `(function(){${code}})();`;
+    }
+  } else {
+    finalCode = code;
+  }
   return "javascript:" + encodeURI(finalCode).replace(/#/g, "%23");
 }
 
