@@ -170,6 +170,7 @@ const css = `:root {
   --fg: #0f172a;
   --muted: #64748b;
   --accent: #2563eb;
+  --accent-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   --accent-fg: #ffffff;
   --card: rgba(248, 250, 252, 0.65);
   --border: rgba(148, 163, 184, 0.35);
@@ -190,6 +191,7 @@ body[data-theme="dark"] {
   --fg: #e2e8f0;
   --muted: #94a3b8;
   --accent: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   --accent-fg: #0b1220;
   --card: rgba(15, 23, 42, 0.55);
   --border: rgba(96, 165, 250, 0.32);
@@ -360,6 +362,10 @@ h1 {
   margin: 0 0 6px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  background-image: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 p.subtitle {
@@ -435,7 +441,7 @@ div.title-group {
 }
 
 a.btn {
-  background: var(--accent);
+  background-image: var(--accent-gradient);
   color: var(--accent-fg);
   text-decoration: none;
   padding: 10px 16px;
@@ -445,7 +451,9 @@ a.btn {
   align-items: center;
   gap: 8px;
   box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
 }
 
 a.btn:hover,
@@ -453,6 +461,7 @@ a.btn:focus-visible {
   box-shadow: var(--shadow-hover);
   transform: translateY(-1px);
   outline: none;
+  background-position: 100% 50%;
 }
 
 span.name {
