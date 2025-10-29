@@ -630,7 +630,7 @@ const cardsHtml = entries
       ${details}
     </article>`;
   })
-  .join("\n");
+  .join("\\n");
 
 const script = `<script>
 (function(){
