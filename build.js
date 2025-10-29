@@ -110,11 +110,32 @@ const entries = ordered.map(file => {
   const full = path.join(SRC, file);
   const src = fs.readFileSync(full, "utf8");
   const cfg = meta.items[file] || {};
-  const name = cfg.name || file.replace(/\.js$/, "");
-  const desc = cfg.desc || "";
-  const href = toBookmarkletURL(src, cfg.wrap !== false);
+  const {
+    name: rawName,
+    desc: rawDesc,
+    wrap,
+    bookmarkName: rawBookmarkName,
+    ...rest
+  } = cfg;
+
+  const fallbackName = file.replace(/\.js$/, "");
+  const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : fallbackName;
+  const desc = typeof rawDesc === "string" ? rawDesc.trim() : "";
+  const bookmarkNameClean =
+    typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
+  const bookmarkName = bookmarkNameClean || name;
+  const href = toBookmarkletURL(src, wrap !== false);
   const mtime = fs.statSync(full).mtime.toISOString();
-  return { name, desc, href, mtime };
+
+  return {
+    ...rest,
+    name,
+    desc,
+    href,
+    mtime,
+    bookmarkName,
+    hasBookmarkName: Boolean(bookmarkNameClean),
+  };
 });
 
 // HTML & CSS ------------------------------------------------------------
@@ -297,6 +318,13 @@ div.row1-left {
   min-width: 240px;
 }
 
+div.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 a.btn {
   background: var(--accent);
   color: var(--accent-fg);
@@ -320,6 +348,38 @@ a.btn:focus-visible {
 
 span.name {
   font-weight: 600;
+}
+
+span.bookmark-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.12);
+  padding: 2px 10px;
+  border-radius: 999px;
+  align-self: flex-start;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+span.bookmark-name.is-fallback {
+  color: var(--muted);
+  background: rgba(100, 116, 139, 0.12);
+  font-weight: 500;
+}
+
+html[data-theme="dark"] span.bookmark-name {
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.22);
+}
+
+html[data-theme="dark"] span.bookmark-name.is-fallback {
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.22);
 }
 
 span.badge {
@@ -408,11 +468,17 @@ const cardsHtml = entries
     const details = e.desc
       ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
       : "";
-    return `<article class="card" data-id="${escapeHtml(e.name)}">
+    const bookmarkLine = e.bookmarkName
+      ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
+      : "";
+    return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
           <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">🔖 Drag</a>
-          <span class="name">${escapeHtml(e.name)}</span>
+          <div class="title-group">
+            <span class="name">${escapeHtml(e.name)}</span>
+            ${bookmarkLine}
+          </div>
         </div>
         <span class="badge">Last change: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
       </div>
@@ -531,7 +597,12 @@ const script = `<script>(function(){
       const lines=[...document.querySelectorAll('article.card')].map(card=>{
         const name=card.querySelector('.name').textContent.trim();
         const href=card.querySelector('a.btn').getAttribute('href');
-        return '- ['+name+']('+href+')';
+        const bookmark=(card.getAttribute('data-bookmark')||'').trim();
+        const isFallback=card.getAttribute('data-bookmark-fallback')==='true';
+        const bookmarkSuffix=bookmark
+          ? ' — Bookmark: '+bookmark+(isFallback?' (default)':'')
+          : '';
+        return '- ['+name+']('+href+')'+bookmarkSuffix;
       }).join('\n');
       try{
         await navigator.clipboard.writeText(lines);
