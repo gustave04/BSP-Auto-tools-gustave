@@ -124,58 +124,76 @@ function formatRelativeLastChange(isoString, reference = new Date()) {
     now = new Date();
   }
 
-  const diffMs = Math.max(0, now.getTime() - last.getTime());
+  const lastTime = last.getTime();
+  const nowTime = now.getTime();
+  if (!Number.isFinite(lastTime) || !Number.isFinite(nowTime)) {
+    return "Unknown";
+  }
+
+  const diffMsRaw = nowTime - lastTime;
+  const inFuture = diffMsRaw < 0;
+  const diffMs = Math.abs(diffMsRaw);
   const minuteMs = 60 * 1000;
   const dayMs = 24 * minuteMs;
   const monthMs = 30 * dayMs;
 
+  let label;
+
   if (diffMs < dayMs) {
     const minutes = Math.max(1, Math.round(diffMs / minuteMs));
-    return pluralize(minutes, "minute");
+    label = pluralize(minutes, "minute");
+  } else {
+    const rawDays = Math.floor(diffMs / dayMs);
+    const days = rawDays > 0 ? rawDays : 1;
+    if (days < 60) {
+      label = pluralize(days, "day");
+    } else {
+      const start = inFuture ? new Date(nowTime) : new Date(lastTime);
+      const end = inFuture ? new Date(lastTime) : new Date(nowTime);
+
+      let years = end.getFullYear() - start.getFullYear();
+      let months = end.getMonth() - start.getMonth();
+
+      if (end.getDate() < start.getDate()) {
+        months -= 1;
+      }
+
+      while (months < 0) {
+        years -= 1;
+        months += 12;
+      }
+
+      if (years < 0) {
+        years = 0;
+      }
+
+      const totalMonths = years * 12 + months;
+
+      if (totalMonths <= 0) {
+        const approxMonths = Math.max(1, Math.round(diffMs / monthMs));
+        label = pluralize(approxMonths, "month");
+      } else if (years === 0) {
+        label = pluralize(totalMonths, "month");
+      } else {
+        const remainingMonths = totalMonths - years * 12;
+        if (remainingMonths <= 0) {
+          label = pluralize(years, "year");
+        } else {
+          label = `${pluralize(years, "year")} / ${pluralize(remainingMonths, "month")}`;
+        }
+      }
+    }
   }
 
-  const rawDays = Math.floor(diffMs / dayMs);
-  const days = rawDays > 0 ? rawDays : 1;
-  if (days < 60) {
-    return pluralize(days, "day");
+  if (!label) {
+    label = pluralize(1, "minute");
   }
 
-  const start = new Date(last.getTime());
-  const end = new Date(now.getTime());
-
-  let years = end.getFullYear() - start.getFullYear();
-  let months = end.getMonth() - start.getMonth();
-
-  if (end.getDate() < start.getDate()) {
-    months -= 1;
+  if (inFuture) {
+    return `in ${label}`;
   }
 
-  while (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-
-  if (years < 0) {
-    years = 0;
-  }
-
-  const totalMonths = years * 12 + months;
-
-  if (totalMonths <= 0) {
-    const approxMonths = Math.max(1, Math.round(diffMs / monthMs));
-    return pluralize(approxMonths, "month");
-  }
-
-  if (years === 0) {
-    return pluralize(totalMonths, "month");
-  }
-
-  const remainingMonths = totalMonths - years * 12;
-  if (remainingMonths <= 0) {
-    return pluralize(years, "year");
-  }
-
-  return `${pluralize(years, "year")} / ${pluralize(remainingMonths, "month")}`;
+  return `${label} ago`;
 }
 
 function getLastChangeISO(file) {
