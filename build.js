@@ -113,9 +113,62 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function normalizeBookmarkletSource(source, wrap = true) {
+  if (typeof source !== "string") {
+    const shouldWrap = wrap !== false;
+    return {
+      code: "",
+      wrap: shouldWrap,
+      wrapperType: shouldWrap ? "plain" : "none",
+    };
+  }
+
+  let cleaned = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
+  const jsPrefixMatch = cleaned.match(/^\s*javascript:\s*/i);
+  if (jsPrefixMatch) {
+    cleaned = cleaned.slice(jsPrefixMatch[0].length);
+  }
+
+  cleaned = cleaned.trim();
+
+  const shouldWrap = wrap !== false;
+  let wrapperType = shouldWrap ? "plain" : "none";
+
+  if (shouldWrap) {
+    const iifePatterns = [
+      { pattern: /^\(function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "async" },
+      { pattern: /^\(\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "async" },
+    ];
+
+    for (const { pattern, type } of iifePatterns) {
+      const match = cleaned.match(pattern);
+      if (match) {
+        cleaned = match[1];
+        wrapperType = type;
+        break;
+      }
+    }
+  }
+
+  return { code: cleaned, wrap: shouldWrap, wrapperType };
+}
+
 function toBookmarkletURL(source, wrap = true) {
-  const code = wrap ? `(function(){${source}})();` : source;
-  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
+  const { code, wrap: shouldWrap, wrapperType } = normalizeBookmarkletSource(source, wrap);
+  let finalCode;
+  if (shouldWrap) {
+    if (wrapperType === "async") {
+      finalCode = `(async function(){${code}})();`;
+    } else {
+      finalCode = `(function(){${code}})();`;
+    }
+  } else {
+    finalCode = code;
+  }
+  return "javascript:" + encodeURI(finalCode).replace(/#/g, "%23");
 }
 
 // Collect ---------------------------------------------------------------
