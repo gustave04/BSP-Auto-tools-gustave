@@ -113,9 +113,62 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function normalizeBookmarkletSource(source, wrap = true) {
+  if (typeof source !== "string") {
+    const shouldWrap = wrap !== false;
+    return {
+      code: "",
+      wrap: shouldWrap,
+      wrapperType: shouldWrap ? "plain" : "none",
+    };
+  }
+
+  let cleaned = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
+  const jsPrefixMatch = cleaned.match(/^\s*javascript:\s*/i);
+  if (jsPrefixMatch) {
+    cleaned = cleaned.slice(jsPrefixMatch[0].length);
+  }
+
+  cleaned = cleaned.trim();
+
+  const shouldWrap = wrap !== false;
+  let wrapperType = shouldWrap ? "plain" : "none";
+
+  if (shouldWrap) {
+    const iifePatterns = [
+      { pattern: /^\(function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*function\s*\(\)\s*{([\s\S]*)}\)\(\);?$/i, type: "async" },
+      { pattern: /^\(\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "plain" },
+      { pattern: /^\(\s*async\s*\(\s*\)\s*=>\s*{([\s\S]*)}\)\s*\(\);?$/i, type: "async" },
+    ];
+
+    for (const { pattern, type } of iifePatterns) {
+      const match = cleaned.match(pattern);
+      if (match) {
+        cleaned = match[1];
+        wrapperType = type;
+        break;
+      }
+    }
+  }
+
+  return { code: cleaned, wrap: shouldWrap, wrapperType };
+}
+
 function toBookmarkletURL(source, wrap = true) {
-  const code = wrap ? `(function(){${source}})();` : source;
-  return "javascript:" + encodeURI(code).replace(/#/g, "%23");
+  const { code, wrap: shouldWrap, wrapperType } = normalizeBookmarkletSource(source, wrap);
+  let finalCode;
+  if (shouldWrap) {
+    if (wrapperType === "async") {
+      finalCode = `(async function(){${code}})();`;
+    } else {
+      finalCode = `(function(){${code}})();`;
+    }
+  } else {
+    finalCode = code;
+  }
+  return "javascript:" + encodeURI(finalCode).replace(/#/g, "%23");
 }
 
 // Collect ---------------------------------------------------------------
@@ -234,6 +287,10 @@ h6 {
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1 0 auto;
 }
 
 #toastHost {
@@ -355,6 +412,7 @@ h6 {
 
 main {
   background: transparent;
+  flex: 1 0 auto;
 }
 
 h1 {
@@ -386,11 +444,13 @@ section.grid {
 }
 
 .site-footer {
-  margin: 40px 0 10px;
+  margin: 0;
+  padding: 18px 0 12px;
   text-align: center;
   font-size: 0.92rem;
   color: var(--muted);
   letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
 }
 
 .site-footer strong {
@@ -450,6 +510,8 @@ a.btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  row-gap: 2px;
   box-shadow: var(--shadow);
   background-size: 200% 200%;
   background-position: 0% 50%;
@@ -829,7 +891,7 @@ const html = `<!doctype html>
         ${cardsHtml}
       </section>
     </main>
-    <footer class="site-footer"><strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
+    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
     <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
