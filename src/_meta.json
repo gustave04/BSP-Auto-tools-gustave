@@ -4,14 +4,14 @@
   "items": {
     "bspAutoCopyBookmarklet.js": {
       "name": "Copy Bookmarklet",          // Anzeigename in der UI
-      "bookmarkName": "Copy – BSP Resa",   // Name des gespeicherten Lesezeichens
-      "desc": "Kopiert strukturierte Daten in die Zwischenablage.",
+      "bookmarkName": "Copy - BSP Resas",   // Name des gespeicherten Lesezeichens
+      "desc": "Copies the following Reservation Data: Pick Up/ Drop Off-Station, Date and Time. Then opens the simulation BSP simulation Page in a new tab.",
       "wrap": true
     },
     "bspAutoFillBookmarklet.js": {
       "name": "Fill Bookmarklet",
-      "bookmarkName": "Fill – BSP Tarifs",
-      "desc": "Füllt das BSP-Formular automatisch.",
+      "bookmarkName": "Fill - BSP Tarifs",
+      "desc": "Fills in the simulation page with previously copied data from a reservation. Disclaimer can only be used together with 'Copy - BSP Resa'",
       "wrap": true
     }
   }
