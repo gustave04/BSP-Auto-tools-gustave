@@ -287,6 +287,10 @@ h6 {
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1 0 auto;
 }
 
 #toastHost {
@@ -408,6 +412,7 @@ h6 {
 
 main {
   background: transparent;
+  flex: 1 0 auto;
 }
 
 h1 {
@@ -439,11 +444,13 @@ section.grid {
 }
 
 .site-footer {
-  margin: 40px 0 10px;
+  margin: 0;
+  padding: 18px 0 12px;
   text-align: center;
   font-size: 0.92rem;
   color: var(--muted);
   letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
 }
 
 .site-footer strong {
@@ -503,10 +510,54 @@ a.btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  row-gap: 2px;
   box-shadow: var(--shadow);
   background-size: 200% 200%;
   background-position: 0% 50%;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.3s ease;
+}
+
+a.btn .btn-label {
+  font-weight: 650;
+}
+
+a.btn .drag-hint {
+  font-size: 11px;
+  font-variant: all-small-caps;
+  letter-spacing: 0.16em;
+  color: rgba(248, 250, 252, 0.86);
+  opacity: 0.92;
+  border-bottom: 1px dashed rgba(248, 250, 252, 0.4);
+  padding-bottom: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: drag-hint-wiggle 2.4s ease-in-out infinite;
+}
+
+@keyframes drag-hint-wiggle {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(2px);
+  }
+  40% {
+    transform: translateX(-3px);
+  }
+  60% {
+    transform: translateX(1.5px);
+  }
+  80% {
+    transform: translateX(-1px);
+  }
+}
+
+html[data-theme="dark"] a.btn .drag-hint {
+  color: rgba(11, 18, 32, 0.86);
+  border-bottom-color: rgba(11, 18, 32, 0.35);
 }
 
 a.btn:hover,
@@ -652,7 +703,7 @@ const cardsHtml = entries
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
-          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${escapeHtml(e.bookmarkName || e.name)}</a>
+          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks"><span class="btn-label">${escapeHtml(e.bookmarkName || e.name)}</span><span class="drag-hint">⇢ Drag me</span></a>
           <div class="title-group">
             <span class="name">${escapeHtml(e.name)}</span>
             ${bookmarkLine}
@@ -864,7 +915,7 @@ const html = `<!doctype html>
         ${cardsHtml}
       </section>
     </main>
-    <footer class="site-footer"><strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
+    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
     <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
