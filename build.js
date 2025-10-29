@@ -65,22 +65,43 @@ function stripJsonComments(input) {
   return result;
 }
 
-function readMeta() {
-  const metaFile = path.join(SRC, "_meta.json");
-  if (!fs.existsSync(metaFile)) return { order: [], items: {} };
+function readJsonFile(file) {
+  if (!fs.existsSync(file)) return null;
   try {
-    const raw = fs.readFileSync(metaFile, "utf8");
+    const raw = fs.readFileSync(file, "utf8");
     const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
     const cleaned = stripJsonComments(normalized).trim();
-    if (!cleaned) return { order: [], items: {} };
-    const meta = JSON.parse(cleaned);
-    return {
-      order: Array.isArray(meta.order) ? meta.order : [],
-      items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
-    };
+    if (!cleaned) return null;
+    return JSON.parse(cleaned);
   } catch {
-    return { order: [], items: {} };
+    return null;
   }
+}
+
+function readMeta() {
+  const metaFile = path.join(SRC, "_meta.json");
+  const meta = readJsonFile(metaFile) || {};
+  return {
+    version: typeof meta.version === "string" ? meta.version.trim() : "",
+    order: Array.isArray(meta.order) ? meta.order : [],
+    items: typeof meta.items === "object" && meta.items !== null ? meta.items : {},
+  };
+}
+
+function resolveVersion(metaVersion = "") {
+  const pkg = readJsonFile(path.join(__dirname, "package.json"));
+  if (pkg && typeof pkg.version === "string" && pkg.version.trim()) {
+    return pkg.version.trim();
+  }
+  if (metaVersion && metaVersion.trim()) {
+    return metaVersion.trim();
+  }
+  return "0.0.0";
+}
+
+function formatTimestamp(date) {
+  const pad = value => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function escapeHtml(str) {
@@ -101,6 +122,9 @@ function toBookmarkletURL(source, wrap = true) {
 ensureDir(DIST);
 const allFiles = listJs(SRC);
 const meta = readMeta();
+const version = resolveVersion(meta.version);
+const versionDisplay = version.startsWith("v") ? version : `v${version}`;
+const buildTimestamp = formatTimestamp(new Date());
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -266,6 +290,19 @@ section.grid {
   flex-direction: column;
   gap: 16px;
   margin-top: 32px;
+}
+
+.site-footer {
+  margin: 40px 0 10px;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.site-footer strong {
+  font-weight: 600;
+  color: var(--fg);
 }
 
 article.card {
@@ -639,6 +676,7 @@ const html = `<!doctype html>
         ${cardsHtml}
       </section>
     </main>
+    <footer class="site-footer"><strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
   </div>
   ${script}
 </body>
