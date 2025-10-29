@@ -154,6 +154,9 @@ const css = `:root {
   --radius: 14px;
   --tooltip-bg: rgba(15, 23, 42, 0.92);
   --tooltip-fg: #f8fafc;
+  --toast-bg: rgba(15, 23, 42, 0.95);
+  --toast-fg: #f8fafc;
+  --toast-border: rgba(148, 163, 184, 0.35);
 }
 
 :root[data-theme="dark"],
@@ -170,6 +173,9 @@ body[data-theme="dark"] {
   --shadow-hover: 0 16px 40px rgba(59, 130, 246, 0.28);
   --tooltip-bg: rgba(226, 232, 240, 0.92);
   --tooltip-fg: #0f172a;
+  --toast-bg: rgba(15, 23, 42, 0.85);
+  --toast-fg: #e2e8f0;
+  --toast-border: rgba(148, 163, 184, 0.3);
 }
 
 * {
@@ -193,6 +199,74 @@ body {
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 8px;
+}
+
+#toastHost {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - 32px));
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  border: 1px solid var(--toast-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  animation: toast-in 200ms ease forwards;
+}
+
+.toast-leave {
+  animation: toast-out 180ms ease forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+}
+
+@media (max-width: 600px) {
+  #toastHost {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    align-items: flex-end;
+  }
+
+  #toastHost .toast {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .topbar {
@@ -485,8 +559,10 @@ const script = `<script>(function(){
   const body=document.body;
   const themeBtn=document.getElementById('themeToggle');
   const liveRegion=document.getElementById('liveRegion');
+  const toastHost=document.getElementById('toastHost');
   const prefersDark=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):{matches:false};
   const PULSE_TIMEOUT=1200;
+  const TOAST_DURATION=2800;
   const tipTimers=new WeakMap();
   let liveMessageTimer=null;
   let liveResetTimer=null;
@@ -594,14 +670,49 @@ const script = `<script>(function(){
     tipTimers.set(el,timeout);
   }
 
+  function showToast(message,options){
+    if(!toastHost) return;
+    const opts=options||{};
+    const duration=Math.max(1200, typeof opts.duration==='number'?opts.duration:TOAST_DURATION);
+    const toast=document.createElement('div');
+    toast.className='toast';
+    toast.setAttribute('role','status');
+    toast.setAttribute('aria-live','polite');
+    toast.textContent=message;
+    toastHost.appendChild(toast);
+
+    const remove=()=>{
+      if(!toast.classList.contains('toast-leave')){
+        toast.classList.add('toast-leave');
+      }
+    };
+
+    const hideTimer=setTimeout(remove,duration);
+
+    toast.addEventListener('animationend',event=>{
+      if(event.animationName==='toast-out'){
+        clearTimeout(hideTimer);
+        toast.remove();
+      }
+    });
+
+    return remove;
+  }
+
   document.querySelectorAll('button.copy').forEach(btn=>{
     btn.addEventListener('click',async()=>{
       const url=decodeURIComponent(btn.getAttribute('data-code'));
       try{
         await navigator.clipboard.writeText(url);
         pulse(btn,'Copied!');
+        showToast('Copied to clipboard');
       }catch(err){
-        fallbackCopy(url)?pulse(btn,'Copied!'):pulse(btn,'Copy failed');
+        if(fallbackCopy(url)){
+          pulse(btn,'Copied!');
+          showToast('Copied to clipboard');
+        }else{
+          pulse(btn,'Copy failed');
+        }
       }
     });
   });
@@ -639,6 +750,7 @@ const html = `<!doctype html>
         ${cardsHtml}
       </section>
     </main>
+    <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
 </body>
