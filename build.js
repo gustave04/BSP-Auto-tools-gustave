@@ -281,6 +281,13 @@ div.row1-left {
   min-width: 240px;
 }
 
+div.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 a.btn {
   background: var(--accent);
   color: var(--accent-fg);
@@ -304,6 +311,38 @@ a.btn:focus-visible {
 
 span.name {
   font-weight: 600;
+}
+
+span.bookmark-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.12);
+  padding: 2px 10px;
+  border-radius: 999px;
+  align-self: flex-start;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+span.bookmark-name.is-fallback {
+  color: var(--muted);
+  background: rgba(100, 116, 139, 0.12);
+  font-weight: 500;
+}
+
+html[data-theme="dark"] span.bookmark-name {
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.22);
+}
+
+html[data-theme="dark"] span.bookmark-name.is-fallback {
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.22);
 }
 
 span.badge {
@@ -399,7 +438,10 @@ const cardsHtml = entries
     const details = e.desc
       ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
       : "";
-    return `<article class="card" data-id="${escapeHtml(e.name)}">
+    const bookmarkLine = e.bookmarkName
+      ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
+      : "";
+    return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
           <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">🔖 ${escapeHtml(e.bookmarkName)}</a>
