@@ -218,7 +218,7 @@ const entries = ordered.map(file => {
 // HTML & CSS ------------------------------------------------------------
 const css = `:root {
   color-scheme: light;
-  --maxw: 100px;
+  --maxw: 1000px;
   --bg: #ffffff;
   --fg: #0f172a;
   --muted: #64748b;
