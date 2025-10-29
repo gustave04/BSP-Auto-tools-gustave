@@ -208,7 +208,7 @@ body[data-theme="dark"] {
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
+  font-family: 'Lexend', 'Inter', 'Inter Tight', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
   background: var(--bg);
   color: var(--fg);
   display: flex;
@@ -216,6 +216,15 @@ body {
   align-items: stretch;
   min-height: 100vh;
   padding: 24px 0 32px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Lexend', 'Inter', 'Inter Tight', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial;
 }
 
 .page {
@@ -356,6 +365,10 @@ h1 {
 p.subtitle {
   text-align: center;
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  font-size: 13px;
   margin: 0;
 }
 
@@ -760,7 +773,7 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
   <script>(function(){
     try{
       var stored=localStorage.getItem('theme');
