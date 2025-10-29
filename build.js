@@ -110,32 +110,12 @@ const entries = ordered.map(file => {
   const full = path.join(SRC, file);
   const src = fs.readFileSync(full, "utf8");
   const cfg = meta.items[file] || {};
-  const {
-    name: rawName,
-    desc: rawDesc,
-    wrap,
-    bookmarkName: rawBookmarkName,
-    ...rest
-  } = cfg;
-
-  const fallbackName = file.replace(/\.js$/, "");
-  const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : fallbackName;
-  const desc = typeof rawDesc === "string" ? rawDesc.trim() : "";
-  const bookmarkNameClean =
-    typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
-  const bookmarkName = bookmarkNameClean || name;
-  const href = toBookmarkletURL(src, wrap !== false);
+  const name = cfg.name || file.replace(/\.js$/, "");
+  const bookmarkName = cfg.bookmarkName || name;
+  const desc = cfg.desc || "";
+  const href = toBookmarkletURL(src, cfg.wrap !== false);
   const mtime = fs.statSync(full).mtime.toISOString();
-
-  return {
-    ...rest,
-    name,
-    desc,
-    href,
-    mtime,
-    bookmarkName,
-    hasBookmarkName: Boolean(bookmarkNameClean),
-  };
+  return { name, bookmarkName, desc, href, mtime };
 });
 
 // HTML & CSS ------------------------------------------------------------
@@ -464,11 +444,8 @@ const cardsHtml = entries
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
-          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">🔖 Drag</a>
-          <div class="title-group">
-            <span class="name">${escapeHtml(e.name)}</span>
-            ${bookmarkLine}
-          </div>
+          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">🔖 ${escapeHtml(e.bookmarkName)}</a>
+          <span class="name">${escapeHtml(e.name)}</span>
         </div>
         <span class="badge">Last update: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
       </div>
