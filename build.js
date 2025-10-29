@@ -234,6 +234,10 @@ h6 {
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1 0 auto;
 }
 
 #toastHost {
@@ -355,6 +359,7 @@ h6 {
 
 main {
   background: transparent;
+  flex: 1 0 auto;
 }
 
 h1 {
@@ -386,11 +391,13 @@ section.grid {
 }
 
 .site-footer {
-  margin: 40px 0 10px;
+  margin: 0;
+  padding: 18px 0 12px;
   text-align: center;
   font-size: 0.92rem;
   color: var(--muted);
   letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
 }
 
 .site-footer strong {
@@ -811,7 +818,7 @@ const html = `<!doctype html>
         ${cardsHtml}
       </section>
     </main>
-    <footer class="site-footer"><strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
+    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
     <div id="toastHost" aria-live="polite" aria-atomic="false"></div>
   </div>
   ${script}
