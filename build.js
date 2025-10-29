@@ -135,7 +135,8 @@ const css = `:root {
   --tooltip-fg: #f8fafc;
 }
 
-html[data-theme="dark"] {
+:root[data-theme="dark"],
+body[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0b1220;
   --fg: #e2e8f0;
@@ -161,19 +162,22 @@ body {
   color: var(--fg);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   min-height: 100vh;
-  padding: 48px 16px 64px;
+  padding: 24px 0 32px;
 }
 
 .page {
   width: 100%;
   max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 8px;
 }
 
 .topbar {
   display: flex;
   justify-content: flex-start;
+  padding: 0 8px;
   margin-bottom: 16px;
 }
 
@@ -227,34 +231,6 @@ p.subtitle {
   text-align: center;
   color: var(--muted);
   margin: 0;
-}
-
-.toolbar {
-  margin-top: 24px;
-  display: flex;
-  justify-content: center;
-}
-
-.toolbar button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  padding: 10px 16px;
-  background: var(--card);
-  color: var(--fg);
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.toolbar button:hover,
-.toolbar button:focus-visible {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-  outline: none;
 }
 
 section.grid {
@@ -426,31 +402,44 @@ const cardsHtml = entries
 
 const script = `<script>(function(){
   const root=document.documentElement;
+  const body=document.body;
   const themeBtn=document.getElementById('themeToggle');
-  const exportBtn=document.getElementById('exportAll');
   const liveRegion=document.getElementById('liveRegion');
-  const prefersDark=window.matchMedia('(prefers-color-scheme: dark)');
+  const prefersDark=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):{matches:false};
   const PULSE_TIMEOUT=1200;
   const tipTimers=new WeakMap();
   let liveMessageTimer=null;
   let liveResetTimer=null;
 
+  function safeGet(key){
+    try{return localStorage.getItem(key);}catch(e){return null;}
+  }
+
+  function safeSet(key,value){
+    try{localStorage.setItem(key,value);}catch(e){}
+  }
+
   function updateThemeToggle(mode){
     if(!themeBtn) return;
     themeBtn.setAttribute('aria-pressed',mode==='dark'?'true':'false');
-    themeBtn.setAttribute('data-tip',mode==='dark'?'Dark mode':'Light mode');
+    const nextLabel=mode==='dark'?'Switch to light mode':'Switch to dark mode';
+    themeBtn.setAttribute('data-tip',nextLabel);
+    themeBtn.setAttribute('aria-label',nextLabel);
   }
 
-  function applyTheme(mode){
+  function applyTheme(mode,options){
     const chosen=mode==='dark'?'dark':'light';
     root.setAttribute('data-theme',chosen);
-    localStorage.setItem('theme',chosen);
+    if(body){body.setAttribute('data-theme',chosen);}
+    if(!options||options.store!==false){
+      safeSet('theme',chosen);
+    }
     updateThemeToggle(chosen);
   }
 
-  const saved=localStorage.getItem('theme');
+  const saved=safeGet('theme');
   const initial=saved==='dark'||saved==='light'?saved:prefersDark.matches?'dark':'light';
-  applyTheme(initial);
+  applyTheme(initial,{store:false});
 
   if(themeBtn){
     themeBtn.addEventListener('click',()=>{
@@ -525,22 +514,6 @@ const script = `<script>(function(){
       }
     });
   });
-
-  if(exportBtn){
-    exportBtn.addEventListener('click',async()=>{
-      const lines=[...document.querySelectorAll('article.card')].map(card=>{
-        const name=card.querySelector('.name').textContent.trim();
-        const href=card.querySelector('a.btn').getAttribute('href');
-        return '- ['+name+']('+href+')';
-      }).join('\n');
-      try{
-        await navigator.clipboard.writeText(lines);
-        pulse(exportBtn,'Exported!');
-      }catch(err){
-        fallbackCopy(lines)?pulse(exportBtn,'Exported!'):pulse(exportBtn,'Copy failed');
-      }
-    });
-  }
 })();</script>`;
 
 const html = `<!doctype html>
@@ -549,21 +522,28 @@ const html = `<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script>(function(){
+    try{
+      var stored=localStorage.getItem('theme');
+      if(stored==='dark'||stored==='light'){
+        document.documentElement.setAttribute('data-theme',stored);
+      }else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){
+        document.documentElement.setAttribute('data-theme','dark');
+      }
+    }catch(e){}
+  })();</script>
   <title>BSP Auto – Bookmarklets</title>
   <style>${css}</style>
 </head>
 <body>
+  <header class="topbar">
+    <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
+  </header>
   <div class="page">
-    <header class="topbar">
-      <button id="themeToggle" class="theme-toggle" type="button" data-tip="Toggle theme" aria-label="Toggle theme">🌗</button>
-    </header>
     <div id="liveRegion" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <main>
       <h1>BSP Auto – Bookmarklets</h1>
       <p class="subtitle">Drag buttons to your bookmarks bar or click to run.</p>
-      <div class="toolbar">
-        <button id="exportAll" type="button" data-tip="Copy list as Markdown">🗒️ Export list</button>
-      </div>
       <section class="grid">
         ${cardsHtml}
       </section>
