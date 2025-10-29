@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const childProcess = require("child_process");
 
 const SRC = path.join(__dirname, "src");
 const DIST = path.join(__dirname, "dist");
@@ -104,6 +105,123 @@ function formatTimestamp(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function pluralize(count, singular) {
+  const numeric = Number(count);
+  const safeCount = Number.isFinite(numeric)
+    ? Math.max(1, Math.round(Math.abs(numeric)))
+    : 1;
+  return `${safeCount} ${singular}${safeCount === 1 ? "" : "s"}`;
+}
+
+function formatRelativeLastChange(isoString, reference = new Date()) {
+  const last = new Date(isoString);
+  if (Number.isNaN(last.getTime())) {
+    return "Unknown";
+  }
+
+  let now = reference instanceof Date ? reference : new Date(reference);
+  if (Number.isNaN(now.getTime())) {
+    now = new Date();
+  }
+
+  const lastTime = last.getTime();
+  const nowTime = now.getTime();
+  if (!Number.isFinite(lastTime) || !Number.isFinite(nowTime)) {
+    return "Unknown";
+  }
+
+  const diffMsRaw = nowTime - lastTime;
+  const inFuture = diffMsRaw < 0;
+  const diffMs = Math.abs(diffMsRaw);
+  const minuteMs = 60 * 1000;
+  const dayMs = 24 * minuteMs;
+  const monthMs = 30 * dayMs;
+
+  let label;
+
+  if (diffMs < dayMs) {
+    const minutes = Math.max(1, Math.round(diffMs / minuteMs));
+    label = pluralize(minutes, "minute");
+  } else {
+    const rawDays = Math.floor(diffMs / dayMs);
+    const days = rawDays > 0 ? rawDays : 1;
+    if (days < 60) {
+      label = pluralize(days, "day");
+    } else {
+      const start = inFuture ? new Date(nowTime) : new Date(lastTime);
+      const end = inFuture ? new Date(lastTime) : new Date(nowTime);
+
+      let years = end.getFullYear() - start.getFullYear();
+      let months = end.getMonth() - start.getMonth();
+
+      if (end.getDate() < start.getDate()) {
+        months -= 1;
+      }
+
+      while (months < 0) {
+        years -= 1;
+        months += 12;
+      }
+
+      if (years < 0) {
+        years = 0;
+      }
+
+      const totalMonths = years * 12 + months;
+
+      if (totalMonths <= 0) {
+        const approxMonths = Math.max(1, Math.round(diffMs / monthMs));
+        label = pluralize(approxMonths, "month");
+      } else if (years === 0) {
+        label = pluralize(totalMonths, "month");
+      } else {
+        const remainingMonths = totalMonths - years * 12;
+        if (remainingMonths <= 0) {
+          label = pluralize(years, "year");
+        } else {
+          label = `${pluralize(years, "year")} / ${pluralize(remainingMonths, "month")}`;
+        }
+      }
+    }
+  }
+
+  if (!label) {
+    label = pluralize(1, "minute");
+  }
+
+  if (inFuture) {
+    return `in ${label}`;
+  }
+
+  return `${label} ago`;
+}
+
+function getLastChangeISO(file) {
+  const relative = path.relative(__dirname, file);
+  try {
+    const output = childProcess
+      .execFileSync("git", ["log", "-1", "--format=%cI", relative], {
+        cwd: __dirname,
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+      .toString()
+      .trim();
+
+    if (output) {
+      const parsed = new Date(output);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+  } catch {}
+
+  try {
+    return fs.statSync(file).mtime.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 function escapeHtml(str) {
   return str
     .replace(/&/g, "&amp;")
@@ -177,7 +295,8 @@ const allFiles = listJs(SRC);
 const meta = readMeta();
 const version = resolveVersion(meta.version);
 const versionDisplay = version.startsWith("v") ? version : `v${version}`;
-const buildTimestamp = formatTimestamp(new Date());
+const buildNow = new Date();
+const buildTimestamp = formatTimestamp(buildNow);
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -202,7 +321,7 @@ const entries = ordered.map(file => {
     typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
   const bookmarkName = bookmarkNameClean || name;
   const href = toBookmarkletURL(src, wrap !== false);
-  const mtime = fs.statSync(full).mtime.toISOString();
+  const mtime = getLastChangeISO(full);
 
   return {
     ...rest,
@@ -573,6 +692,7 @@ const cardsHtml = entries
     const bookmarkLine = e.bookmarkName
       ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
       : "";
+    const lastChange = formatRelativeLastChange(e.mtime, buildNow);
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
@@ -584,7 +704,7 @@ const cardsHtml = entries
             ${bookmarkLine}
           </div>
         </div>
-        <span class="badge">Last update: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
+        <span class="badge">Last change: ${escapeHtml(lastChange)}</span>
       </div>
       ${details}
     </article>`;
