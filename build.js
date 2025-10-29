@@ -202,17 +202,19 @@ body {
   margin-bottom: 16px;
 }
 
+
 .theme-toggle {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  border: none;
   background: var(--card);
   color: var(--fg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 24px;
+  line-height: 1;
   cursor: pointer;
   box-shadow: var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -230,11 +232,16 @@ body {
   border: 0;
 }
 
-.theme-toggle:hover,
+.theme-toggle:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+}
+
 .theme-toggle:focus-visible {
   box-shadow: var(--shadow-hover);
   transform: translateY(-1px);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 main {
@@ -361,6 +368,13 @@ html[data-theme="dark"] span.bookmark-name.is-fallback {
 span.badge {
   font-size: 13px;
   color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
 }
 
 .actions {
@@ -456,7 +470,7 @@ const cardsHtml = entries
             ${bookmarkLine}
           </div>
         </div>
-        <span class="badge">Last change: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
+        <span class="badge">Last update: ${new Date(e.mtime).toLocaleDateString("en-GB")}</span>
       </div>
       <div class="actions">
         <button class="copy" type="button" data-code="${encodeURIComponent(e.href)}" data-tip="Copy bookmarklet URL">📋 Copy</button>
