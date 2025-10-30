@@ -20,6 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: ''
+      - name: Ensure full history for git-based timestamps
+        run: |
+          if git rev-parse --is-shallow-repository 2>/dev/null | grep -q true; then
+            git fetch --prune --unshallow
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: 20

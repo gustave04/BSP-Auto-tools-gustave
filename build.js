@@ -179,6 +179,10 @@ const version = resolveVersion(meta.version);
 const versionDisplay = version.startsWith("v") ? version : `v${version}`;
 const buildNow = new Date();
 const buildTimestamp = formatTimestamp(buildNow);
+const metaFilePath = path.join(SRC, "_meta.json");
+const metaFileText = fs.existsSync(metaFilePath)
+  ? fs.readFileSync(metaFilePath, "utf8").replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n")
+  : null;
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
