@@ -384,7 +384,7 @@ div.more {
             <span class="bookmark-name">Bookmark: Copy – BSP Resa</span>
           </div>
         </div>
-        <span class="badge" data-last-change="2025-10-29T18:05:56.000Z" data-last-change-absolute="2025-10-29 18:05">Last change: 2025-10-29 18:05</span>
+        <span class="badge" data-last-change="2025-10-29T18:38:45.000Z" data-last-change-absolute="2025-10-29 18:38">Last change: 2025-10-29 18:38</span>
       </div>
       <details><summary>More info</summary><div class="more">Copies the following Reservation Data: Pick Up/ Drop Off-Station, Date and Time. Then opens the simulation BSP simulation Page in a new tab.</div></details>
     </article>
@@ -399,13 +399,13 @@ div.more {
             <span class="bookmark-name">Bookmark: Fill - BSP Tarifs</span>
           </div>
         </div>
-        <span class="badge" data-last-change="2025-10-28T13:42:39.000Z" data-last-change-absolute="2025-10-28 13:42">Last change: 2025-10-28 13:42</span>
+        <span class="badge" data-last-change="2025-10-29T17:58:05.000Z" data-last-change-absolute="2025-10-29 17:58">Last change: 2025-10-29 17:58</span>
       </div>
       <details><summary>More info</summary><div class="more">Fills in the simulation page with previously copied data from a reservation. Disclaimer can only be used together with &#039;Copy - BSP Resa&#039;</div></details>
     </article>
       </section>
     </main>
-    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>v1.0.0</strong> (2025-10-29 19:38)</footer>
+    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>v1.0.0</strong> (2025-10-30 16:40)</footer>
   </div>
   <script>
 (function(){
@@ -538,8 +538,7 @@ div.more {
         ev.dataTransfer.setData('text/uri-list',url);
         ev.dataTransfer.setData('text/plain',url);
         if(title){
-          try{ev.dataTransfer.setData('text/x-moz-url',url+'
-'+title);}catch(e){}
+          try{ev.dataTransfer.setData('text/x-moz-url',url+'\n'+title);}catch(e){}
           try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(title)+'</a>');}catch(e){}
         }
       });

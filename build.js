@@ -139,6 +139,99 @@ function getLastChangeISO(file) {
   }
 }
 
+function latestTimestampISO(candidates) {
+  let latest = null;
+
+  for (const iso of candidates) {
+    if (typeof iso !== "string" || !iso) continue;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) continue;
+    if (!latest || date.getTime() > latest.getTime()) {
+      latest = date;
+    }
+  }
+
+  return latest ? latest.toISOString() : null;
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|\[\]\\]/g, "\\$&");
+}
+
+function findMetaEntryLineRange(metaText, file) {
+  if (!metaText) return null;
+  const pattern = new RegExp(`"${escapeRegExp(file)}"\\s*:`);
+  const match = pattern.exec(metaText);
+  if (!match) return null;
+
+  const afterColonIndex = match.index + match[0].length;
+  const braceStart = metaText.indexOf("{", afterColonIndex);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let braceEnd = -1;
+
+  for (let i = braceStart; i < metaText.length; i++) {
+    const ch = metaText[i];
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        braceEnd = i;
+        break;
+      }
+    }
+  }
+
+  if (braceEnd === -1) return null;
+
+  const startLine = metaText.slice(0, match.index).split("\n").length;
+  const endLine = metaText.slice(0, braceEnd + 1).split("\n").length;
+
+  return { startLine, endLine };
+}
+
+function getMetaEntryLastChangeISO(file, metaText) {
+  const lineRange = findMetaEntryLineRange(metaText, file);
+  if (!lineRange) return null;
+
+  const relative = path.relative(__dirname, metaFilePath);
+
+  try {
+    const blameOutput = childProcess
+      .execFileSync(
+        "git",
+        [
+          "blame",
+          "-L",
+          `${lineRange.startLine},${lineRange.endLine}`,
+          "--line-porcelain",
+          relative,
+        ],
+        { cwd: __dirname, stdio: ["ignore", "pipe", "ignore"] }
+      )
+      .toString();
+
+    let latestEpoch = 0;
+
+    for (const line of blameOutput.split(/\r?\n/)) {
+      if (line.startsWith("committer-time ")) {
+        const value = Number(line.slice("committer-time ".length));
+        if (!Number.isNaN(value) && value > latestEpoch) {
+          latestEpoch = value;
+        }
+      }
+    }
+
+    if (latestEpoch > 0) {
+      return new Date(latestEpoch * 1000).toISOString();
+    }
+  } catch {}
+
+  return null;
+}
+
 function escapeHtml(str) {
   return str
     .replace(/&/g, "&amp;")
@@ -214,6 +307,10 @@ const version = resolveVersion(meta.version);
 const versionDisplay = version.startsWith("v") ? version : `v${version}`;
 const buildNow = new Date();
 const buildTimestamp = formatTimestamp(buildNow);
+const metaFilePath = path.join(SRC, "_meta.json");
+const metaFileText = fs.existsSync(metaFilePath)
+  ? fs.readFileSync(metaFilePath, "utf8").replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n")
+  : null;
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -238,7 +335,12 @@ const entries = ordered.map(file => {
     typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
   const bookmarkName = bookmarkNameClean || name;
   const href = toBookmarkletURL(src, wrap !== false);
-  const mtime = getLastChangeISO(full);
+  const scriptMtime = getLastChangeISO(full);
+  const metadataMtime = metaFileText
+    ? getMetaEntryLastChangeISO(file, metaFileText)
+    : null;
+  const combinedMtime = latestTimestampISO([scriptMtime, metadataMtime]);
+  const mtime = combinedMtime || scriptMtime;
 
   return {
     ...rest,
