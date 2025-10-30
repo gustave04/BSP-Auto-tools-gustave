@@ -3,7 +3,6 @@
 
 const fs = require("fs");
 const path = require("path");
-const childProcess = require("child_process");
 
 const SRC = path.join(__dirname, "src");
 const DIST = path.join(__dirname, "dist");
@@ -103,133 +102,6 @@ function resolveVersion(metaVersion = "") {
 function formatTimestamp(date) {
   const pad = value => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatLastChangeAbsolute(isoString) {
-  const parsed = new Date(isoString);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Unknown";
-  }
-  return formatTimestamp(parsed);
-}
-
-function getLastChangeISO(file) {
-  const relative = path.relative(__dirname, file);
-  try {
-    const output = childProcess
-      .execFileSync("git", ["log", "-1", "--format=%cI", relative], {
-        cwd: __dirname,
-        stdio: ["ignore", "pipe", "ignore"],
-      })
-      .toString()
-      .trim();
-
-    if (output) {
-      const parsed = new Date(output);
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-      }
-    }
-  } catch {}
-
-  try {
-    return fs.statSync(file).mtime.toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
-
-function latestTimestampISO(candidates) {
-  let latest = null;
-
-  for (const iso of candidates) {
-    if (typeof iso !== "string" || !iso) continue;
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) continue;
-    if (!latest || date.getTime() > latest.getTime()) {
-      latest = date;
-    }
-  }
-
-  return latest ? latest.toISOString() : null;
-}
-
-function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|\[\]\\]/g, "\\$&");
-}
-
-function findMetaEntryLineRange(metaText, file) {
-  if (!metaText) return null;
-  const pattern = new RegExp(`"${escapeRegExp(file)}"\\s*:`);
-  const match = pattern.exec(metaText);
-  if (!match) return null;
-
-  const afterColonIndex = match.index + match[0].length;
-  const braceStart = metaText.indexOf("{", afterColonIndex);
-  if (braceStart === -1) return null;
-
-  let depth = 0;
-  let braceEnd = -1;
-
-  for (let i = braceStart; i < metaText.length; i++) {
-    const ch = metaText[i];
-    if (ch === "{") {
-      depth++;
-    } else if (ch === "}") {
-      depth--;
-      if (depth === 0) {
-        braceEnd = i;
-        break;
-      }
-    }
-  }
-
-  if (braceEnd === -1) return null;
-
-  const startLine = metaText.slice(0, match.index).split("\n").length;
-  const endLine = metaText.slice(0, braceEnd + 1).split("\n").length;
-
-  return { startLine, endLine };
-}
-
-function getMetaEntryLastChangeISO(file, metaText) {
-  const lineRange = findMetaEntryLineRange(metaText, file);
-  if (!lineRange) return null;
-
-  const relative = path.relative(__dirname, metaFilePath);
-
-  try {
-    const blameOutput = childProcess
-      .execFileSync(
-        "git",
-        [
-          "blame",
-          "-L",
-          `${lineRange.startLine},${lineRange.endLine}`,
-          "--line-porcelain",
-          relative,
-        ],
-        { cwd: __dirname, stdio: ["ignore", "pipe", "ignore"] }
-      )
-      .toString();
-
-    let latestEpoch = 0;
-
-    for (const line of blameOutput.split(/\r?\n/)) {
-      if (line.startsWith("committer-time ")) {
-        const value = Number(line.slice("committer-time ".length));
-        if (!Number.isNaN(value) && value > latestEpoch) {
-          latestEpoch = value;
-        }
-      }
-    }
-
-    if (latestEpoch > 0) {
-      return new Date(latestEpoch * 1000).toISOString();
-    }
-  } catch {}
-
-  return null;
 }
 
 function escapeHtml(str) {
@@ -335,19 +207,11 @@ const entries = ordered.map(file => {
     typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
   const bookmarkName = bookmarkNameClean || name;
   const href = toBookmarkletURL(src, wrap !== false);
-  const scriptMtime = getLastChangeISO(full);
-  const metadataMtime = metaFileText
-    ? getMetaEntryLastChangeISO(file, metaFileText)
-    : null;
-  const combinedMtime = latestTimestampISO([scriptMtime, metadataMtime]);
-  const mtime = combinedMtime || scriptMtime;
-
   return {
     ...rest,
     name,
     desc,
     href,
-    mtime,
     bookmarkName,
     hasBookmarkName: Boolean(bookmarkNameClean),
   };
@@ -711,11 +575,6 @@ const cardsHtml = entries
     const bookmarkLine = e.bookmarkName
       ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
       : "";
-    const lastChangeAbsolute = formatLastChangeAbsolute(e.mtime);
-    const lastChangeLabel =
-      lastChangeAbsolute === "Unknown"
-        ? "Last change: Unknown"
-        : `Last change: ${lastChangeAbsolute}`;
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
@@ -727,7 +586,7 @@ const cardsHtml = entries
             ${bookmarkLine}
           </div>
         </div>
-        <span class="badge" data-last-change="${escapeHtml(e.mtime)}" data-last-change-absolute="${escapeHtml(lastChangeAbsolute)}">${escapeHtml(lastChangeLabel)}</span>
+        <span class="badge">GENERAL</span>
       </div>
       ${details}
     </article>`;
@@ -784,76 +643,6 @@ const script = `<script>
     function escapeHtmlLite(value){
       return value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
-
-    function formatRelativeLastChangeRuntime(isoString, reference){
-      if(!isoString){return null;}
-      var last=new Date(isoString);
-      if(isNaN(last.getTime())){return null;}
-      var now=reference instanceof Date?reference:new Date(reference||Date.now());
-      if(isNaN(now.getTime())){now=new Date();}
-      var diffMsRaw=now.getTime()-last.getTime();
-      var inFuture=diffMsRaw<0;
-      var diffMs=Math.abs(diffMsRaw);
-      var minuteMs=60*1000;
-      var dayMs=24*minuteMs;
-      var monthMs=30*dayMs;
-      var label='';
-      if(diffMs<dayMs){
-        var minutes=Math.max(1,Math.round(diffMs/minuteMs));
-        label=minutes===1?'1 minute':minutes+' minutes';
-      }else{
-        var rawDays=Math.floor(diffMs/dayMs);
-        var days=rawDays>0?rawDays:1;
-        if(days<60){
-          label=days===1?'1 day':days+' days';
-        }else{
-          var start=inFuture?new Date(now.getTime()):new Date(last.getTime());
-          var end=inFuture?new Date(last.getTime()):new Date(now.getTime());
-          var years=end.getFullYear()-start.getFullYear();
-          var months=end.getMonth()-start.getMonth();
-          if(end.getDate()<start.getDate()){months-=1;}
-          while(months<0){years-=1;months+=12;}
-          if(years<0){years=0;}
-          var totalMonths=years*12+months;
-          if(totalMonths<=0){
-            var approxMonths=Math.max(1,Math.round(diffMs/monthMs));
-            label=approxMonths===1?'1 month':approxMonths+' months';
-          }else if(years===0){
-            label=totalMonths===1?'1 month':totalMonths+' months';
-          }else{
-            var remainingMonths=totalMonths-years*12;
-            if(remainingMonths<=0){
-              label=years===1?'1 year':years+' years';
-            }else{
-              var yearLabel=years===1?'1 year':years+' years';
-              var monthLabel=remainingMonths===1?'1 month':remainingMonths+' months';
-              label=yearLabel+' / '+monthLabel;
-            }
-          }
-        }
-      }
-      if(!label){label='1 minute';}
-      return inFuture?'in '+label:label+' ago';
-    }
-
-    function updateLastChangeBadges(){
-      var now=new Date();
-      document.querySelectorAll('.badge[data-last-change]').forEach(function(el){
-        var iso=el.getAttribute('data-last-change');
-        var absolute=el.getAttribute('data-last-change-absolute');
-        var relative=formatRelativeLastChangeRuntime(iso,now);
-        if(relative){
-          el.textContent='Last change: '+relative;
-        }else if(absolute){
-          el.textContent='Last change: '+absolute;
-        }else{
-          el.textContent='Last change: Unknown';
-        }
-      });
-    }
-
-    updateLastChangeBadges();
-    setInterval(updateLastChangeBadges,60*1000);
 
     document.querySelectorAll('a.btn').forEach(anchor=>{
       anchor.addEventListener('dragstart',ev=>{
