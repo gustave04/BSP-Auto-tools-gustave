@@ -384,7 +384,7 @@ div.more {
             <span class="bookmark-name">Bookmark: Copy – BSP Resa</span>
           </div>
         </div>
-        <span class="badge" data-last-change="2025-10-29T18:05:56.000Z" data-last-change-absolute="2025-10-29 18:05">Last change: 2025-10-29 18:05</span>
+        <span class="badge">GENERAL</span>
       </div>
       <details><summary>More info</summary><div class="more">Copies the following Reservation Data: Pick Up/ Drop Off-Station, Date and Time. Then opens the simulation BSP simulation Page in a new tab.</div></details>
     </article>
@@ -399,13 +399,13 @@ div.more {
             <span class="bookmark-name">Bookmark: Fill - BSP Tarifs</span>
           </div>
         </div>
-        <span class="badge" data-last-change="2025-10-28T13:42:39.000Z" data-last-change-absolute="2025-10-28 13:42">Last change: 2025-10-28 13:42</span>
+        <span class="badge">GENERAL</span>
       </div>
       <details><summary>More info</summary><div class="more">Fills in the simulation page with previously copied data from a reservation. Disclaimer can only be used together with &#039;Copy - BSP Resa&#039;</div></details>
     </article>
       </section>
     </main>
-    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>v1.0.0</strong> (2025-10-29 19:38)</footer>
+    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>v1.0.0</strong> (2025-10-30 17:04)</footer>
   </div>
   <script>
 (function(){
@@ -458,76 +458,6 @@ div.more {
       return value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    function formatRelativeLastChangeRuntime(isoString, reference){
-      if(!isoString){return null;}
-      var last=new Date(isoString);
-      if(isNaN(last.getTime())){return null;}
-      var now=reference instanceof Date?reference:new Date(reference||Date.now());
-      if(isNaN(now.getTime())){now=new Date();}
-      var diffMsRaw=now.getTime()-last.getTime();
-      var inFuture=diffMsRaw<0;
-      var diffMs=Math.abs(diffMsRaw);
-      var minuteMs=60*1000;
-      var dayMs=24*minuteMs;
-      var monthMs=30*dayMs;
-      var label='';
-      if(diffMs<dayMs){
-        var minutes=Math.max(1,Math.round(diffMs/minuteMs));
-        label=minutes===1?'1 minute':minutes+' minutes';
-      }else{
-        var rawDays=Math.floor(diffMs/dayMs);
-        var days=rawDays>0?rawDays:1;
-        if(days<60){
-          label=days===1?'1 day':days+' days';
-        }else{
-          var start=inFuture?new Date(now.getTime()):new Date(last.getTime());
-          var end=inFuture?new Date(last.getTime()):new Date(now.getTime());
-          var years=end.getFullYear()-start.getFullYear();
-          var months=end.getMonth()-start.getMonth();
-          if(end.getDate()<start.getDate()){months-=1;}
-          while(months<0){years-=1;months+=12;}
-          if(years<0){years=0;}
-          var totalMonths=years*12+months;
-          if(totalMonths<=0){
-            var approxMonths=Math.max(1,Math.round(diffMs/monthMs));
-            label=approxMonths===1?'1 month':approxMonths+' months';
-          }else if(years===0){
-            label=totalMonths===1?'1 month':totalMonths+' months';
-          }else{
-            var remainingMonths=totalMonths-years*12;
-            if(remainingMonths<=0){
-              label=years===1?'1 year':years+' years';
-            }else{
-              var yearLabel=years===1?'1 year':years+' years';
-              var monthLabel=remainingMonths===1?'1 month':remainingMonths+' months';
-              label=yearLabel+' / '+monthLabel;
-            }
-          }
-        }
-      }
-      if(!label){label='1 minute';}
-      return inFuture?'in '+label:label+' ago';
-    }
-
-    function updateLastChangeBadges(){
-      var now=new Date();
-      document.querySelectorAll('.badge[data-last-change]').forEach(function(el){
-        var iso=el.getAttribute('data-last-change');
-        var absolute=el.getAttribute('data-last-change-absolute');
-        var relative=formatRelativeLastChangeRuntime(iso,now);
-        if(relative){
-          el.textContent='Last change: '+relative;
-        }else if(absolute){
-          el.textContent='Last change: '+absolute;
-        }else{
-          el.textContent='Last change: Unknown';
-        }
-      });
-    }
-
-    updateLastChangeBadges();
-    setInterval(updateLastChangeBadges,60*1000);
-
     document.querySelectorAll('a.btn').forEach(anchor=>{
       anchor.addEventListener('dragstart',ev=>{
         const url=anchor.getAttribute('href');
@@ -538,8 +468,7 @@ div.more {
         ev.dataTransfer.setData('text/uri-list',url);
         ev.dataTransfer.setData('text/plain',url);
         if(title){
-          try{ev.dataTransfer.setData('text/x-moz-url',url+'
-'+title);}catch(e){}
+          try{ev.dataTransfer.setData('text/x-moz-url',url+'\n'+title);}catch(e){}
           try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(title)+'</a>');}catch(e){}
         }
       });
