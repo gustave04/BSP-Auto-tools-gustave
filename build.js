@@ -139,6 +139,21 @@ function getLastChangeISO(file) {
   }
 }
 
+function latestTimestampISO(candidates) {
+  let latest = null;
+
+  for (const iso of candidates) {
+    if (typeof iso !== "string" || !iso) continue;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) continue;
+    if (!latest || date.getTime() > latest.getTime()) {
+      latest = date;
+    }
+  }
+
+  return latest ? latest.toISOString() : null;
+}
+
 function escapeHtml(str) {
   return str
     .replace(/&/g, "&amp;")
@@ -214,6 +229,8 @@ const version = resolveVersion(meta.version);
 const versionDisplay = version.startsWith("v") ? version : `v${version}`;
 const buildNow = new Date();
 const buildTimestamp = formatTimestamp(buildNow);
+const metaFilePath = path.join(SRC, "_meta.json");
+const metaLastChange = fs.existsSync(metaFilePath) ? getLastChangeISO(metaFilePath) : null;
 const ordered = [
   ...meta.order.filter(f => allFiles.includes(f)),
   ...allFiles.filter(f => !meta.order.includes(f)),
@@ -238,7 +255,9 @@ const entries = ordered.map(file => {
     typeof rawBookmarkName === "string" && rawBookmarkName.trim() ? rawBookmarkName.trim() : "";
   const bookmarkName = bookmarkNameClean || name;
   const href = toBookmarkletURL(src, wrap !== false);
-  const mtime = getLastChangeISO(full);
+  const scriptMtime = getLastChangeISO(full);
+  const combinedMtime = latestTimestampISO([scriptMtime, metaLastChange]);
+  const mtime = combinedMtime || scriptMtime;
 
   return {
     ...rest,
