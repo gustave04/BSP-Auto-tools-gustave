@@ -312,7 +312,9 @@ h6 {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
-  margin-left: 20px;
+  margin-left: 30px;
+  position: relative;
+  top: 6px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
