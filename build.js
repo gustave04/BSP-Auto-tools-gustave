@@ -365,11 +365,63 @@ p.subtitle {
   margin: 0;
 }
 
+.content-layout {
+  position: relative;
+  margin: 80px auto 0;
+  width: min(100%, 640px);
+}
+
 section.grid {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 80px;
+  width: min(100%, 640px);
+  margin: 0 auto;
+}
+
+.tutorial-card {
+  width: 280px;
+  position: absolute;
+  top: 0;
+  left: calc(100% + 36px);
+}
+
+.tutorial-card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.tutorial-card ol {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tutorial-card li strong {
+  color: var(--fg);
+}
+
+@media (max-width: 1100px) {
+  .content-layout {
+    margin-top: 56px;
+    width: min(100%, 640px);
+  }
+
+  section.grid {
+    margin: 0 auto;
+  }
+
+  .tutorial-card {
+    position: static;
+    width: min(100%, 360px);
+    margin: 32px auto 0;
+  }
 }
 
 .site-footer {
@@ -387,7 +439,7 @@ section.grid {
   color: var(--fg);
 }
 
-article.card {
+.card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -401,7 +453,7 @@ article.card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-article.card:hover {
+.card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
 }
@@ -425,7 +477,7 @@ div.row1-left {
 div.title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -474,18 +526,33 @@ span.name {
   font-weight: 600;
 }
 
+.bookmark-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-self: flex-start;
+}
+
+.bookmark-line .bookmark-label {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
 span.bookmark-name {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--accent);
   background: rgba(37, 99, 235, 0.12);
-  padding: 2px 10px;
+  padding: 2px 12px 3px;
   border-radius: 999px;
-  align-self: flex-start;
   max-width: 100%;
   word-break: break-word;
 }
@@ -493,7 +560,49 @@ span.bookmark-name {
 span.bookmark-name.is-fallback {
   color: var(--muted);
   background: rgba(100, 116, 139, 0.12);
-  font-weight: 500;
+  font-weight: 550;
+}
+
+.bookmark-line .fallback-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+button.copy-name {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+button.copy-name:hover {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+button.copy-name:focus-visible {
+  background: rgba(148, 163, 184, 0.16);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"] button.copy-name:hover,
+html[data-theme="dark"] button.copy-name:focus-visible {
+  background: rgba(59, 130, 246, 0.24);
+}
+
+button.copy-name svg {
+  width: 22px;
+  height: 22px;
 }
 
 html[data-theme="dark"] span.bookmark-name {
@@ -572,13 +681,19 @@ const cardsHtml = entries
     const details = e.desc
       ? `<details><summary>More info</summary><div class="more">${escapeHtml(e.desc)}</div></details>`
       : "";
-    const bookmarkLine = e.bookmarkName
-      ? `<span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">Bookmark: ${escapeHtml(e.bookmarkName)}${e.hasBookmarkName ? "" : " (default)"}</span>`
+    const fallbackNote = e.hasBookmarkName ? "" : `<span class="fallback-note">(default)</span>`;
+    const copyIconSvg = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="3.5" width="11.5" height="14.5" rx="2.5" ry="2.5" fill="currentColor"/><rect x="4.5" y="6.5" width="11.5" height="14.5" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    const copyButton = e.bookmarkName
+      ? `<button class="copy-name" type="button" data-name="${escapeHtml(e.bookmarkName)}" data-tip="Copy name" aria-label="Copy bookmark name">${copyIconSvg}</button>`
       : "";
+    const bookmarkLine = e.bookmarkName
+      ? `<div class="bookmark-line"><span class="bookmark-label">NAME:</span><span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">${escapeHtml(e.bookmarkName)}</span>${fallbackNote}${copyButton}</div>`
+      : "";
+    const anchorAria = escapeHtml(`Drag ${e.bookmarkName || e.name} bookmarklet to your bar`);
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
       <div class="row1">
         <div class="row1-left">
-          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks">${escapeHtml(e.bookmarkName || e.name)}</a>
+          <a class="btn" draggable="true" href="${e.href}" data-tip="Drag to bookmarks" aria-label="${anchorAria}">🔗 Code</a>
           <span class="drag-hint">⇢ Drag me</span>
           <span class="drag-divider" aria-hidden="true"></span>
           <div class="title-group">
@@ -648,18 +763,102 @@ const script = `<script>
       anchor.addEventListener('dragstart',ev=>{
         const url=anchor.getAttribute('href');
         const card=anchor.closest('article');
-        const cleanup=value=>value==null?'':String(value).replace(/[\\r\\n]+/g,' ').replace(/\\\\s+/g,' ').trim();
-        const preferredTitle=cleanup(card?card.getAttribute('data-bookmark'):null);
-        const fallbackTitle=cleanup(anchor.textContent);
-        const resolvedTitle=preferredTitle||fallbackTitle;
-        const bookmarkTitle=resolvedTitle||cleanup(anchor.getAttribute('aria-label'))||cleanup(anchor.getAttribute('title'));
-        const finalTitle=bookmarkTitle||url;
+        const cleanup=value=>{
+          if(value==null) return '';
+          const text=String(value);
+          let result='';
+          let lastWasSpace=false;
+          for(const ch of text){
+            const isSpace=ch.trim()==='';
+            if(isSpace){
+              if(!lastWasSpace){
+                result+=' ';
+                lastWasSpace=true;
+              }
+            }else{
+              result+=ch;
+              lastWasSpace=false;
+            }
+          }
+          return result.trim();
+        };
+        const datasetBookmark=cleanup(card?card.getAttribute('data-bookmark'):null);
+        const datasetName=cleanup(card?card.getAttribute('data-id'):null);
+        const ariaLabel=cleanup(anchor.getAttribute('aria-label'));
+        const titleAttr=cleanup(anchor.getAttribute('title'));
+        const finalTitle=datasetBookmark||datasetName||ariaLabel||titleAttr||url;
         ev.dataTransfer.effectAllowed='copy';
         try{ev.dataTransfer.setData('text/uri-list',url);}catch(e){}
-        try{ev.dataTransfer.setData('text/plain',(bookmarkTitle?bookmarkTitle+'\\n':'')+url);}catch(e){}
+        try{ev.dataTransfer.setData('text/plain',url);}catch(e){}
         try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(finalTitle)+'</a>');}catch(e){}
         try{ev.dataTransfer.setData('text/x-moz-url',url+'\\n'+finalTitle);}catch(e){}
       });
+    });
+
+    document.querySelectorAll('.copy-name').forEach(button=>{
+      const defaultTip=button.getAttribute('data-tip')||'';
+      const name=button.getAttribute('data-name')||'';
+      function resetTip(){
+        button.setAttribute('data-tip',defaultTip);
+        if(button._copyTimer){
+          clearTimeout(button._copyTimer);
+          button._copyTimer=null;
+        }
+      }
+      function setTempTip(text){
+        button.setAttribute('data-tip',text);
+        if(button._copyTimer){
+          clearTimeout(button._copyTimer);
+        }
+        button._copyTimer=window.setTimeout(()=>{
+          resetTip();
+        },1500);
+      }
+      function fallbackCopy(){
+        const textarea=document.createElement('textarea');
+        textarea.value=name;
+        textarea.setAttribute('readonly','');
+        textarea.style.position='absolute';
+        textarea.style.left='-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        let ok=false;
+        try{
+          ok=document.execCommand('copy');
+        }catch(err){
+          ok=false;
+        }
+        document.body.removeChild(textarea);
+        return ok;
+      }
+      async function copy(){
+        if(!name){
+          setTempTip('No name');
+          return;
+        }
+        try{
+          if(navigator.clipboard&&navigator.clipboard.writeText){
+            await navigator.clipboard.writeText(name);
+            setTempTip('Copied!');
+            return;
+          }
+          throw new Error('clipboard unavailable');
+        }catch(err){
+          if(fallbackCopy()){
+            setTempTip('Copied!');
+          }else{
+            setTempTip('Copy failed');
+          }
+        }
+      }
+      button.addEventListener('click',copy);
+      button.addEventListener('keydown',event=>{
+        if(event.key==='Enter'||event.key===' '){
+          event.preventDefault();
+          copy();
+        }
+      });
+      button.addEventListener('blur',resetTip);
     });
   }
 
@@ -698,9 +897,20 @@ const html = `<!doctype html>
     <main>
       <h1>BSP Auto – Tools</h1>
       <p class="subtitle">- drag buttons to your bookmarks bar -</p>
-      <section class="grid">
-        ${cardsHtml}
-      </section>
+      <div class="content-layout">
+        <section class="grid">
+          ${cardsHtml}
+        </section>
+        <aside class="card tutorial-card">
+          <h2>Step-by-step</h2>
+          <ol>
+            <li><strong>Step 1:</strong> Click the copy icon to store the recommended bookmark name.</li>
+            <li><strong>Step 2:</strong> Drag the <em>🔗 Code</em> button into your bookmarks bar.</li>
+            <li><strong>Step 3:</strong> Paste the name when your browser asks for it, then save.</li>
+            <li><strong>Step 4:</strong> Open the bookmarklet on the target BSP Auto page.</li>
+          </ol>
+        </aside>
+      </div>
     </main>
     <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
   </div>
