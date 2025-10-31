@@ -913,7 +913,7 @@ const html = `<!doctype html>
         </aside>
       </div>
     </main>
-    <footer class="site-footer">&copy; BSP Auto 2025 · <strong>${versionDisplay}</strong> (${buildTimestamp})</footer>
+    <footer class="site-footer">&copy; BSP Auto 2025 · (${buildTimestamp})</footer>
   </div>
   ${script}
 </body>
