@@ -383,7 +383,7 @@ section.grid {
   width: 280px;
   position: absolute;
   top: 0;
-  left: calc(100% + 28px);
+  left: calc(100% + 36px);
 }
 
 .tutorial-card h2 {
@@ -477,7 +477,7 @@ div.row1-left {
 div.title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -534,6 +534,14 @@ span.name {
   align-self: flex-start;
 }
 
+.bookmark-line .bookmark-label {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
 span.bookmark-name {
   display: inline-flex;
   align-items: center;
@@ -565,7 +573,7 @@ button.copy-name {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  padding: 3px;
+  padding: 4px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
@@ -593,58 +601,8 @@ html[data-theme="dark"] button.copy-name:focus-visible {
 }
 
 button.copy-name svg {
-  width: 18px;
-  height: 18px;
-}
-
-span.bookmark-name .bookmark-label {
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: var(--muted);
-}
-
-span.bookmark-name .bookmark-value {
-  color: inherit;
-  font-weight: 650;
-}
-
-span.bookmark-name .fallback-note {
-  color: inherit;
-  opacity: 0.75;
-}
-
-button.copy-name {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  padding: 4px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-
-button.copy-name:hover {
-  background: rgba(255, 255, 255, 0.22);
-  transform: translateY(-1px);
-}
-
-button.copy-name:focus-visible {
-  background: rgba(255, 255, 255, 0.22);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  transform: translateY(-1px);
-}
-
-html[data-theme="dark"] button.copy-name:hover,
-html[data-theme="dark"] button.copy-name:focus-visible {
-  background: rgba(15, 23, 42, 0.4);
+  width: 22px;
+  height: 22px;
 }
 
 html[data-theme="dark"] span.bookmark-name {
@@ -729,7 +687,7 @@ const cardsHtml = entries
       ? `<button class="copy-name" type="button" data-name="${escapeHtml(e.bookmarkName)}" data-tip="Copy name" aria-label="Copy bookmark name">${copyIconSvg}</button>`
       : "";
     const bookmarkLine = e.bookmarkName
-      ? `<div class="bookmark-line"><span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">${escapeHtml(e.bookmarkName)}</span>${fallbackNote}${copyButton}</div>`
+      ? `<div class="bookmark-line"><span class="bookmark-label">NAME:</span><span class="bookmark-name${e.hasBookmarkName ? "" : " is-fallback"}">${escapeHtml(e.bookmarkName)}</span>${fallbackNote}${copyButton}</div>`
       : "";
     const anchorAria = escapeHtml(`Drag ${e.bookmarkName || e.name} bookmarklet to your bar`);
     return `<article class="card" data-id="${escapeHtml(e.name)}" data-bookmark="${escapeHtml(e.bookmarkName || "")}" data-bookmark-fallback="${e.hasBookmarkName ? "false" : "true"}">
