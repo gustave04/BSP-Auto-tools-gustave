@@ -366,28 +366,24 @@ p.subtitle {
 }
 
 .content-layout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 32px;
+  position: relative;
   margin: 80px auto 0;
-  max-width: 1100px;
+  width: min(100%, 640px);
 }
 
 section.grid {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex: 0 1 640px;
+  width: min(100%, 640px);
   margin: 0 auto;
 }
 
 .tutorial-card {
-  flex: 0 0 280px;
-  align-self: flex-start;
-  position: sticky;
-  top: 120px;
+  width: 280px;
+  position: absolute;
+  top: 0;
+  left: calc(100% + 28px);
 }
 
 .tutorial-card h2 {
@@ -411,23 +407,20 @@ section.grid {
   color: var(--fg);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .content-layout {
     margin-top: 56px;
-    max-width: none;
-    flex-direction: column;
-    align-items: stretch;
+    width: min(100%, 640px);
   }
 
   section.grid {
-    margin: 0;
+    margin: 0 auto;
   }
 
   .tutorial-card {
-    flex: 1 1 auto;
-    width: 100%;
     position: static;
-    top: auto;
+    width: min(100%, 360px);
+    margin: 32px auto 0;
   }
 }
 
