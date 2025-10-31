@@ -597,6 +597,56 @@ button.copy-name svg {
   height: 18px;
 }
 
+span.bookmark-name .bookmark-label {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+
+span.bookmark-name .bookmark-value {
+  color: inherit;
+  font-weight: 650;
+}
+
+span.bookmark-name .fallback-note {
+  color: inherit;
+  opacity: 0.75;
+}
+
+button.copy-name {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+button.copy-name:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+button.copy-name:focus-visible {
+  background: rgba(255, 255, 255, 0.22);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"] button.copy-name:hover,
+html[data-theme="dark"] button.copy-name:focus-visible {
+  background: rgba(15, 23, 42, 0.4);
+}
+
 html[data-theme="dark"] span.bookmark-name {
   color: #bfdbfe;
   background: rgba(59, 130, 246, 0.22);
@@ -896,10 +946,11 @@ const html = `<!doctype html>
         <aside class="card tutorial-card">
           <h2>Step-by-step</h2>
           <ol>
-            <li><strong>Step 1:</strong> Click the copy icon to store the recommended bookmark name.</li>
-            <li><strong>Step 2:</strong> Drag the <em>🔗 Code</em> button into your bookmarks bar.</li>
-            <li><strong>Step 3:</strong> Paste the name when your browser asks for it, then save.</li>
-            <li><strong>Step 4:</strong> Open the bookmarklet on the target BSP Auto page.</li>
+            <li><strong>Click</strong> the copy icon to store the recommended bookmark name.</li>
+            <li><strong>Drag</strong> the 🔗 Code button into your bookmarks bar.</li>
+            <li><strong>Paste</strong> the name when your browser asks for it, then save.</li>
+            <li><strong>If</strong> your browser doesn't ask for a name, right click on the 🌍 (bookmark) </li>
+            <li><strong>Click</strong> "modifier" and paste in the name </li>
           </ol>
         </aside>
       </div>
