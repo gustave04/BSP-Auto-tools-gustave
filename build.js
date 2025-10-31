@@ -529,7 +529,7 @@ span.name {
 .bookmark-line {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
   flex-wrap: wrap;
   align-self: flex-start;
 }
@@ -573,7 +573,7 @@ button.copy-name {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  padding: 4px;
+  padding: 3px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
