@@ -898,7 +898,7 @@ const html = `<!doctype html>
   <div class="page">
     <main>
       <h1>BSP Auto – Tools</h1>
-      <p class="subtitle">- gustave's automations to simplpify your workflow -</p>
+      <p class="subtitle">- gustave's automations to simplify your workflow -</p>
       <div class="content-layout">
         <section class="grid">
           ${cardsHtml}
