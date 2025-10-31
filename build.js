@@ -314,7 +314,7 @@ h6 {
   cursor: pointer;
   margin-left: 30px;
   position: relative;
-  top: 6px;
+  top: 20px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -908,7 +908,7 @@ const html = `<!doctype html>
         <aside class="card tutorial-card">
           <h2>Step-by-step</h2>
           <ol>
-            <li><strong>Click</strong> the copy icon to store the recommended bookmark name.</li>
+            <li><strong>Click</strong> the copy icon ${copyIconSvg} to store the recommended bookmark name.</li>
             <li><strong>Drag</strong> the 🔗 Code button into your bookmarks bar.</li>
             <li><strong>Paste</strong> the name when your browser asks for it, then save.</li>
             <li><strong>If</strong> your browser doesn't ask for a name, right click on the 🌍 (bookmark) </li>
