@@ -369,15 +369,18 @@ p.subtitle {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 24px;
-  margin-top: 80px;
+  justify-content: center;
+  gap: 32px;
+  margin: 80px auto 0;
+  max-width: 1100px;
 }
 
 section.grid {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex: 1 1 520px;
+  flex: 0 1 640px;
+  margin: 0 auto;
 }
 
 .tutorial-card {
@@ -411,7 +414,13 @@ section.grid {
 @media (max-width: 900px) {
   .content-layout {
     margin-top: 56px;
+    max-width: none;
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  section.grid {
+    margin: 0;
   }
 
   .tutorial-card {
