@@ -312,6 +312,9 @@ h6 {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
+  margin-left: 30px;
+  position: relative;
+  top: 6px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -654,8 +657,9 @@ div.more {
   content: attr(data-tip);
   position: absolute;
   left: 50%;
-  transform: translate(-50%, -8px);
-  bottom: 100%;
+  transform: translateX(-50%);
+  top: calc(100% + 8px);
+  bottom: auto;
   background: var(--tooltip-bg);
   color: var(--tooltip-fg);
   padding: 6px 10px;
