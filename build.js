@@ -896,10 +896,11 @@ const html = `<!doctype html>
         <aside class="card tutorial-card">
           <h2>Step-by-step</h2>
           <ol>
-            <li><strong>Step 1:</strong> Click the copy icon to store the recommended bookmark name.</li>
-            <li><strong>Step 2:</strong> Drag the <em>🔗 Code</em> button into your bookmarks bar.</li>
-            <li><strong>Step 3:</strong> Paste the name when your browser asks for it, then save.</li>
-            <li><strong>Step 4:</strong> Open the bookmarklet on the target BSP Auto page.</li>
+            <li><strong>Click</strong> the copy icon to store the recommended bookmark name.</li>
+            <li><strong>Drag</strong> the 🔗 Code button into your bookmarks bar.</li>
+            <li><strong>Paste</strong> the name when your browser asks for it, then save.</li>
+            <li><strong>If</strong> your browser doesn't ask for a name, right click on the 🌍 (bookmark) </li>
+            <li><strong>Click</strong> "modifier" and paste in the name </li>
           </ol>
         </aside>
       </div>
