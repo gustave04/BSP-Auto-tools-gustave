@@ -648,15 +648,17 @@ const script = `<script>
       anchor.addEventListener('dragstart',ev=>{
         const url=anchor.getAttribute('href');
         const card=anchor.closest('article');
-        const rawTitle=card?card.getAttribute('data-bookmark')||'':'';
-        const title=(rawTitle||anchor.textContent||'').replace(/[\\r\\n]+/g,' ').trim();
+        const cleanup=value=>value==null?'':String(value).replace(/[\\r\\n]+/g,' ').replace(/\\\\s+/g,' ').trim();
+        const preferredTitle=cleanup(card?card.getAttribute('data-bookmark'):null);
+        const fallbackTitle=cleanup(anchor.textContent);
+        const resolvedTitle=preferredTitle||fallbackTitle;
+        const bookmarkTitle=resolvedTitle||cleanup(anchor.getAttribute('aria-label'))||cleanup(anchor.getAttribute('title'));
+        const finalTitle=bookmarkTitle||url;
         ev.dataTransfer.effectAllowed='copy';
-        ev.dataTransfer.setData('text/uri-list',url);
-        ev.dataTransfer.setData('text/plain',url);
-        if(title){
-          try{ev.dataTransfer.setData('text/x-moz-url',url+'\\n'+title);}catch(e){}
-          try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(title)+'</a>');}catch(e){}
-        }
+        try{ev.dataTransfer.setData('text/uri-list',url);}catch(e){}
+        try{ev.dataTransfer.setData('text/plain',(bookmarkTitle?bookmarkTitle+'\\n':'')+url);}catch(e){}
+        try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(finalTitle)+'</a>');}catch(e){}
+        try{ev.dataTransfer.setData('text/x-moz-url',url+'\\n'+finalTitle);}catch(e){}
       });
     });
   }
