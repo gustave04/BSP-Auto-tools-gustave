@@ -656,7 +656,7 @@ const script = `<script>
         const finalTitle=bookmarkTitle||url;
         ev.dataTransfer.effectAllowed='copy';
         try{ev.dataTransfer.setData('text/uri-list',url);}catch(e){}
-        try{ev.dataTransfer.setData('text/plain',(bookmarkTitle?bookmarkTitle+'\\n':'')+url);}catch(e){}
+        try{ev.dataTransfer.setData('text/plain',finalTitle);}catch(e){}
         try{ev.dataTransfer.setData('text/html','<a href="'+url+'">'+escapeHtmlLite(finalTitle)+'</a>');}catch(e){}
         try{ev.dataTransfer.setData('text/x-moz-url',url+'\\n'+finalTitle);}catch(e){}
       });
