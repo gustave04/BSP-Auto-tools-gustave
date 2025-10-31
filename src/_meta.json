@@ -4,7 +4,7 @@
   "items": {
     "bspAutoCopyBookmarklet.js": {
       "name": "Copy Bookmarklet",          // Anzeigename in der UI
-      "bookmarkName": "Copy – BSP Resa",   // Name des gespeicherten Lesezeichens
+      "bookmarkName": "Copy - BSP Resa",   // Name des gespeicherten Lesezeichens
       "desc": "Copies the following Reservation Data: Pick Up/ Drop Off-Station, Date and Time. Then opens the simulation BSP simulation Page in a new tab.",
       "wrap": true
     },
